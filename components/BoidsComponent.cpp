@@ -93,11 +93,11 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .count = boidsCount,
         .turnFactor = 0.2,
         .visualRange = 1,
-        .protectedRange = 0.4,
+        .protectedRange = 0.8,
         .centeringFactor = 0.01,
         .avoidFactor = 0.09,
         .matchingFactor = 0.005,
-        .maxSpeed = 4,
+        .maxSpeed = 2,
         .minSpeed = 1,
         .maxBias = 0.01,
         .biasIncrement = 0.004

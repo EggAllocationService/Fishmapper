@@ -17,10 +17,10 @@ public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
         auto component = CreateComponent<BoidsComponent>(1024, cloud);
 
-        //auto c = CreateComponent<PointCloudComponent>();
-        //c->SetCloudNode(cloud);
-        //c->GetTransform()->SetScale({10, 10, 10});
-        //c->GetTransform()->SetPosition({0, 0, -10});
+        auto c = CreateComponent<PointCloudComponent>();
+        c->SetCloudNode(cloud);
+        c->GetTransform()->SetScale({10, 10, 10});
+        c->GetTransform()->SetPosition({0, 0, -10});
 
         CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
             ->GetTransform()

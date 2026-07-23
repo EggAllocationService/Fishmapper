@@ -47,7 +47,9 @@ fn pcg(n: u32) -> u32 {
     h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
     return (h >> 22u) ^ h;
 }
-
+fn convertPoint(p: vec3f) -> vec3f {
+    return (p * 10) - vec3f(0, 0, 10);
+}
 @compute @workgroup_size(64)
 fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
     let index = pos.x;
@@ -85,16 +87,17 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         boid.velocity = (boid.velocity + (avgPos - boid.position)*params.centeringFactor + (avgVel - boid.velocity)*params.matchingFactor);
     }
 
-    let destDelta = boid.destination - boid.position;
-    let destDist = length(destDelta);
-
-    boid.velocity += (destDelta / destDist) * destDist * 0.2;
-
-    if (destDist < 1) {
-        let newPoint = points[pcg(index + boid.counter) % pointParams.count].position.xyz;
-
-        boid.destination = (newPoint * 10) - vec3(0, 0, 10);
-        boid.counter += 1;
+    if (pointParams.count > 1) {
+        for (var i = 0u; i < pointParams.count; i++) {
+            let delta = boid.position - convertPoint(points[i].position.xyz);
+            let absD = abs(delta);
+            if (absD.x < 3 && absD.y < 3 && absD.z < 3) {
+                let distance = length(delta);
+                if (distance < 3) {
+                    closeD += delta;
+                }
+            }
+        }
     }
 
     boid.velocity += closeD * params.avoidFactor;
