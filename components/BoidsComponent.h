@@ -12,9 +12,11 @@
 #include "pointmapper/pipeline/nodes/Node.h"
 #include "pointmapper/pipeline/types/CommonTypes.h"
 
-struct Boid {
+struct alignas(16) Boid {
     float4 position;
     float4 velocity;
+    float4 destination;
+    uint32_t counter;
 };
 
 struct SimParams {

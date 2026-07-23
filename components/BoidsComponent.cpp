@@ -93,10 +93,10 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .count = boidsCount,
         .turnFactor = 0.2,
         .visualRange = 1,
-        .protectedRange = 0.5,
-        .centeringFactor = 0.005,
-        .avoidFactor = 0.05,
-        .matchingFactor = 0.05,
+        .protectedRange = 0.4,
+        .centeringFactor = 0.01,
+        .avoidFactor = 0.09,
+        .matchingFactor = 0.005,
         .maxSpeed = 4,
         .minSpeed = 1,
         .maxBias = 0.01,
@@ -158,6 +158,8 @@ void BoidsComponent::initPositionsAndVelocities() {
             glengine::math::frand(-1, 1),
             0
         };
+        boids[i].destination = float4(0, 0, 0, 0);
+        boids[i].counter = 0;
     }
 
     GetEngine()->GetRenderer()->GetTransferManager()->Transfer(boidsBuffer, 0, boids, sizeof(Boid) * boidsCount);

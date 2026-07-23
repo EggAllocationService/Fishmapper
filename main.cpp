@@ -7,13 +7,20 @@
 #include "pointmapper/pipeline/PointmapperPipeline.h"
 #include "pointmapper/pipeline/nodes/CreatePointCloudNode.h"
 #include "pointmapper/pipeline/nodes/DepthCameraNode.h"
+#include "pointmapper/pipeline/nodes/RemoveBackgroundNode.h"
+#include "pointmapper/pipeline/nodes/RemoveBlobsNode.h"
 #include "pointmapper/rendering/pipelines.h"
 #include "pointmapper/rendering/PointCloudComponent.h"
 
 class PointActor : public glengine::world::Actor {
 public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-        auto component = CreateComponent<BoidsComponent>(256, cloud);
+        auto component = CreateComponent<BoidsComponent>(1024, cloud);
+
+        //auto c = CreateComponent<PointCloudComponent>();
+        //c->SetCloudNode(cloud);
+        //c->GetTransform()->SetScale({10, 10, 10});
+        //c->GetTransform()->SetPosition({0, 0, -10});
 
         CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
             ->GetTransform()
@@ -35,15 +42,31 @@ int main() {
     auto pipeline = new pointmapper::pipeline::PointmapperPipeline(engine->GetRenderer()->GetDevice(), wgpuDeviceGetQueue(engine->GetRenderer()->GetDevice()));
     auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new Kinect2Device());
     auto cloud = pipeline->CreateNode<pointmapper::pipeline::CreatePointCloudNode>();
+    auto mask = pipeline->CreateNode<pointmapper::pipeline::RemoveBackgroundNode>();
+    auto blobs = pipeline->CreateNode<pointmapper::pipeline::RemoveBlobsNode>();
+
+
+    mask->camera_params->Connect(cam->params);
+    mask->frameData->Connect(cam->frameData);
+    mask->inputDepthMap->Connect(cam->depth);
+
+    blobs->frameData->Connect(cam->frameData);
+    blobs->camera_params->Connect(cam->params);
+    blobs->inputDepthMap->Connect(mask->depthMap);
+
+
     cloud->camera_params->Connect(cam->params);
     cloud->color->Connect(cam->color);
     cloud->frameData->Connect(cam->frameData);
-    cloud->depth_map->Connect(cam->depth);
+    cloud->depth_map->Connect(blobs->depthMap);
 
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());
+    engine->Update();
+    engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 10, -10});
 
     engine->SpawnActor<PointActor>(cloud->cloud);
+
 
     while (true) {
         glfwPollEvents();

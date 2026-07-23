@@ -3,7 +3,9 @@ struct Immediates {
 }
 struct Boid {
     position: vec3f,
-    velocity: vec3f
+    velocity: vec3f,
+    destination: vec3f,
+    counter: u32
 }
 
 struct Params {
@@ -36,9 +38,15 @@ var<uniform> params: Params;
 var<storage, read_write> boids: array<Boid>;
 
 @group(1) @binding(0)
-var<storage, read> pointData: PointData;
+var<storage, read> pointParams: PointData;
 @group(1) @binding(1)
 var<storage, read> points: array<PointXYZRGB>;
+
+fn pcg(n: u32) -> u32 {
+    var h = n * 747796405u + 2891336453u;
+    h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
+    return (h >> 22u) ^ h;
+}
 
 @compute @workgroup_size(64)
 fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
@@ -75,6 +83,18 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         avgVel /= f32(neighbors);
 
         boid.velocity = (boid.velocity + (avgPos - boid.position)*params.centeringFactor + (avgVel - boid.velocity)*params.matchingFactor);
+    }
+
+    let destDelta = boid.destination - boid.position;
+    let destDist = length(destDelta);
+
+    boid.velocity += (destDelta / destDist) * destDist * 0.2;
+
+    if (destDist < 1) {
+        let newPoint = points[pcg(index + boid.counter) % pointParams.count].position.xyz;
+
+        boid.destination = (newPoint * 10) - vec3(0, 0, 10);
+        boid.counter += 1;
     }
 
     boid.velocity += closeD * params.avoidFactor;

@@ -1,7 +1,9 @@
 
 struct Boid {
     position: vec3f,
-    velocity: vec3f
+    velocity: vec3f,
+    destination: vec3f,
+    counter: u32
 }
 
 struct RenderUniforms {
