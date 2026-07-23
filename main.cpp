@@ -1,0 +1,55 @@
+#include <BoidShaders.h>
+
+#include "Engine.h"
+#include "3d/mesh/GizmoComponent.h"
+#include "components/BoidsComponent.h"
+#include "pointmapper/kinect2/Kinect2Device.h"
+#include "pointmapper/pipeline/PointmapperPipeline.h"
+#include "pointmapper/pipeline/nodes/CreatePointCloudNode.h"
+#include "pointmapper/pipeline/nodes/DepthCameraNode.h"
+#include "pointmapper/rendering/pipelines.h"
+#include "pointmapper/rendering/PointCloudComponent.h"
+
+class PointActor : public glengine::world::Actor {
+public:
+    PointActor() {
+        auto component = CreateComponent<BoidsComponent>(2048);
+
+        CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
+            ->GetTransform()
+            ->SetScale({10, 10, 10});
+    }
+
+    void Update(double deltaTime) override {
+        // animation or other per-frame calculations happen here
+    }
+};
+
+int main() {
+    auto engine = new glengine::Engine("Fishmapper", {1280, 720});
+    engine->SetAllowNonFocusedPawnInput(true);
+    engine->GetResourceManager()->MountPak("/", embed_boidresources_pak, embed_boidresources_pak_length);
+
+    registerBoids(engine->GetRenderer());
+
+    auto pipeline = new pointmapper::pipeline::PointmapperPipeline(engine->GetRenderer()->GetDevice(), wgpuDeviceGetQueue(engine->GetRenderer()->GetDevice()));
+    auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new Kinect2Device());
+    auto cloud = pipeline->CreateNode<pointmapper::pipeline::CreatePointCloudNode>();
+    cloud->camera_params->Connect(cam->params);
+    cloud->color->Connect(cam->color);
+    cloud->frameData->Connect(cam->frameData);
+    cloud->depth_map->Connect(cam->depth);
+
+    pipeline->Build();
+    addPointmapperPipelines(engine->GetRenderer());
+
+    engine->SpawnActor<PointActor>();
+
+    while (true) {
+        glfwPollEvents();
+        pipeline->Process();
+        engine->Update();
+        engine->Render();
+    }
+    return 0;
+}
