@@ -9,6 +9,8 @@
 #include "pipeline/wgpu/WGPURenderer.h"
 #include "pipeline/wgpu/pipeline/ComputePipeline.h"
 #include "pipeline/wgpu/pipeline/RenderPipeline.h"
+#include "pointmapper/pipeline/nodes/Node.h"
+#include "pointmapper/pipeline/types/CommonTypes.h"
 
 struct Boid {
     float4 position;
@@ -37,7 +39,7 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer* renderer);
 
 class BoidsComponent : public glengine::world::ActorSceneComponent {
 public:
-    BoidsComponent(unsigned int count);
+    BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud);
 
     void Update(double deltaTime) override;
     void Render(const glengine::pipeline::wgpu::RenderBundle &, glengine::MatrixStack &stack) override;

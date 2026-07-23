@@ -12,8 +12,8 @@
 
 class PointActor : public glengine::world::Actor {
 public:
-    PointActor() {
-        auto component = CreateComponent<BoidsComponent>(2048);
+    PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
+        auto component = CreateComponent<BoidsComponent>(256, cloud);
 
         CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
             ->GetTransform()
@@ -43,7 +43,7 @@ int main() {
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());
 
-    engine->SpawnActor<PointActor>();
+    engine->SpawnActor<PointActor>(cloud->cloud);
 
     while (true) {
         glfwPollEvents();

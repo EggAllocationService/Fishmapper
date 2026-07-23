@@ -19,12 +19,26 @@ struct Params {
     maxBias: f32,
     biasIncrement: f32
 }
+struct PointXYZRGB {
+    position: vec4f
+}
+
+struct PointData {
+    d1: u32,
+    count: u32,
+    d2: u32,
+    d3: u32
+}
 
 @group(0) @binding(0)
 var<uniform> params: Params;
-
 @group(0) @binding(1)
 var<storage, read_write> boids: array<Boid>;
+
+@group(1) @binding(0)
+var<storage, read> pointData: PointData;
+@group(1) @binding(1)
+var<storage, read> points: array<PointXYZRGB>;
 
 @compute @workgroup_size(64)
 fn update_boids(@builtin(global_invocation_id) pos: vec3u) {

@@ -15,8 +15,16 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
     };
+    WGPUBindGroupLayoutEntry pointEntries[2] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
+    };
     entries[0].visibility = WGPUShaderStage_Compute;
     entries[1].visibility = WGPUShaderStage_Compute;
+    entries[1].binding = 1;
+    pointEntries[0].visibility = WGPUShaderStage_Compute;
+    pointEntries[1].visibility = WGPUShaderStage_Compute;
+    pointEntries[1].binding = 1;
 
     entries[0].buffer = {
         .nextInChain = nullptr,
@@ -30,28 +38,49 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
         .hasDynamicOffset = false,
         .minBindingSize = 0
     };
-    entries[1].binding = 1;
-    WGPUBindGroupLayoutDescriptor desc = {
-        .nextInChain = nullptr,
-        .label = {},
-        .entryCount = 2,
-        .entries = &entries[0]
-    };
-    renderer->BuildComputePipeline("BoidsUpdate", kernels, "update_boids", {&desc, 1}, 0);
-    renderer->BuildComputePipeline("BoidsApply", kernels, "apply_velocities", {&desc, 1}, sizeof(BoidImmediates));
 
-    desc.entryCount = 1;
-    desc.entries = &entries[1];
+    pointEntries[0].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_ReadOnlyStorage,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(uint32_t) * 4
+    };
+    pointEntries[1].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_ReadOnlyStorage,
+        .hasDynamicOffset = false,
+        .minBindingSize = 0
+    };
+
+    WGPUBindGroupLayoutDescriptor desc[2] = {
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 2,
+            .entries = &entries[0]
+        },
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 2,
+            .entries = &pointEntries[0]
+        }
+    };
+    renderer->BuildComputePipeline("BoidsUpdate", kernels, "update_boids", {desc, 2}, 0);
+    renderer->BuildComputePipeline("BoidsApply", kernels, "apply_velocities", {desc, 1}, sizeof(BoidImmediates));
+
+    desc[0].entryCount = 1;
+    desc[0].entries = &entries[1];
     entries[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
     entries[1].visibility = WGPUShaderStage_Vertex;
     entries[1].binding = 0;
 
     auto shaders = renderer->CompileShader(embed_boidshaders_wgsl);
-    renderer->BuildRenderPipeline("Boids", shaders, nullptr, {&desc, 1}, sizeof(mat4), nullptr);
+    renderer->BuildRenderPipeline("Boids", shaders, nullptr, {desc, 1}, sizeof(mat4), nullptr);
 
 }
 
-BoidsComponent::BoidsComponent(unsigned int count) {
+BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
     auto renderer = GetEngine()->GetRenderer();
     boidsBuffer = renderer->CreateRawBuffer("boids data", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(Boid) * count);
     boidsCount = count;
@@ -66,7 +95,7 @@ BoidsComponent::BoidsComponent(unsigned int count) {
         .visualRange = 1,
         .protectedRange = 0.5,
         .centeringFactor = 0.005,
-        .avoidFactor = 0.2,
+        .avoidFactor = 0.05,
         .matchingFactor = 0.05,
         .maxSpeed = 4,
         .minSpeed = 1,
@@ -74,36 +103,19 @@ BoidsComponent::BoidsComponent(unsigned int count) {
         .biasIncrement = 0.004
     };
 
-    auto paramsBinding = WGPUBindGroupEntry {
-        .nextInChain = nullptr,
-        .binding = 0,
-        .buffer = Params,
-        .offset = 0,
-        .size = sizeof(SimParams),
-        .sampler = nullptr,
-        .textureView = nullptr
-    };
-    auto boidsBinding = WGPUBindGroupEntry {
-        .nextInChain = nullptr,
-        .binding = 1,
-        .buffer = boidsBuffer,
-        .offset = 0,
-        .size = sizeof(Boid) * boidsCount,
-        .sampler = nullptr,
-        .textureView = nullptr
-    };
+    updatePipeline->SetBinding(0, 1, boidsBuffer);
+    updatePipeline->SetBinding(0, 0, Params);
+    updatePipeline->SetBinding(1, 0, (*cloud)->pointCount);
+    updatePipeline->SetBinding(1, 1, (*cloud)->points);
 
-    updatePipeline->SetBinding(0, boidsBinding);
-    updatePipeline->SetBinding(0, paramsBinding);
-    applyPipeline->SetBinding(0, boidsBinding);
-    applyPipeline->SetBinding(0, paramsBinding);
+    applyPipeline->SetBinding(0, 1, boidsBuffer);
+    applyPipeline->SetBinding(0, 0, Params);
 
     updatePipeline->CommitBindings();
     applyPipeline->CommitBindings();
 
     renderPipeline = renderer->GetRenderPipelineByName("Boids")->CreateInstance();
-    boidsBinding.binding = 0;
-    renderPipeline->SetBinding(1, boidsBinding);
+    renderPipeline->SetBinding(1, 0, boidsBuffer);
     renderPipeline->CommitBindings();
 
     auto cube = GetEngine()->GetResourceManager()->GetResource<glengine::world::mesh::StaticMesh>("/models/goldfish.obj");
