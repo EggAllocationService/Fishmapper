@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 #include "3d/mesh/GizmoComponent.h"
+#include "cmake-build-debug/_deps/glengine-src-src/include/3d/components/AxesComponent.h"
 #include "components/BoidsComponent.h"
 #include "pointmapper/kinect2/Kinect2Device.h"
 #include "pointmapper/pipeline/PointmapperPipeline.h"
@@ -15,7 +16,8 @@
 class PointActor : public glengine::world::Actor {
 public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-        auto component = CreateComponent<BoidsComponent>(1024, cloud);
+        CreateComponent<glengine::world::components::AxesComponent>();
+        auto component = CreateComponent<BoidsComponent>(256, cloud);
 
         auto c = CreateComponent<PointCloudComponent>();
         c->SetCloudNode(cloud);

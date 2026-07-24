@@ -2,8 +2,7 @@
 struct Boid {
     position: vec3f,
     velocity: vec3f,
-    destination: vec3f,
-    counter: u32
+    goal: vec4f,
 }
 
 struct RenderUniforms {

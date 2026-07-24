@@ -100,7 +100,12 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .maxSpeed = 2,
         .minSpeed = 1,
         .maxBias = 0.01,
-        .biasIncrement = 0.004
+        .biasIncrement = 0.004,
+        .targetFactor = 0.03,
+        .jitterRadius = 0.4,
+        .frame = 0,
+        .pad1 = 0,
+        .pad2 = 0
     };
 
     updatePipeline->SetBinding(0, 1, boidsBuffer);
@@ -126,6 +131,7 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
 }
 
 void BoidsComponent::Update(double deltaTime) {
+    (*Params).frame++;
     Params.Commit();
 
     BoidImmediates immediates = {
@@ -158,8 +164,7 @@ void BoidsComponent::initPositionsAndVelocities() {
             glengine::math::frand(-1, 1),
             0
         };
-        boids[i].destination = float4(0, 0, 0, 0);
-        boids[i].counter = 0;
+        boids[i].goal = {0, 0, 0, 0};
     }
 
     GetEngine()->GetRenderer()->GetTransferManager()->Transfer(boidsBuffer, 0, boids, sizeof(Boid) * boidsCount);

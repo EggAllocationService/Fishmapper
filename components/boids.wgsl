@@ -4,8 +4,7 @@ struct Immediates {
 struct Boid {
     position: vec3f,
     velocity: vec3f,
-    destination: vec3f,
-    counter: u32
+    goal: vec4f
 }
 
 struct Params {
@@ -19,7 +18,12 @@ struct Params {
     maxSpeed: f32,
     minSpeed: f32,
     maxBias: f32,
-    biasIncrement: f32
+    biasIncrement: f32,
+    targetFactor: f32,
+    jitterRadius: f32,
+    frame: u32,
+    pad1: f32,
+    pad2: f32
 }
 struct PointXYZRGB {
     position: vec4f
@@ -47,13 +51,21 @@ fn pcg(n: u32) -> u32 {
     h = ((h >> ((h >> 28u) + 4u)) ^ h) * 277803737u;
     return (h >> 22u) ^ h;
 }
+fn rand01(n: u32) -> f32 {
+    return f32(pcg(n)) * (1.0 / 4294967296.0);
+}
+
+const INIT_SAMPLES: u32 = 48u;
+const TRACK_SAMPLES: u32 = 8u;
+const TRACK_RADIUS: f32 = 1.5;
+const REJOIN_RATE: f32 = 0.02;
 fn convertPoint(p: vec3f) -> vec3f {
     return (p * 10) - vec3f(0, 0, 10);
 }
 @compute @workgroup_size(64)
 fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
     let index = pos.x;
-    if (index > params.count) {
+    if (index >= params.count) {
         return;
     }
     let boid = &boids[index];
@@ -87,20 +99,58 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         boid.velocity = (boid.velocity + (avgPos - boid.position)*params.centeringFactor + (avgVel - boid.velocity)*params.matchingFactor);
     }
 
-    if (pointParams.count > 1) {
-        for (var i = 0u; i < pointParams.count; i++) {
-            let delta = boid.position - convertPoint(points[i].position.xyz);
-            let absD = abs(delta);
-            if (absD.x < 3 && absD.y < 3 && absD.z < 3) {
-                let distance = length(delta);
-                if (distance < 3) {
-                    closeD += delta;
+    boid.velocity += closeD * params.avoidFactor;
+
+    if (pointParams.count > 0u) {
+        let seed = params.frame * 747796405u + index * 2891336453u;
+        if (boid.goal.w < 0.5) {
+            // Unassigned: anchor to the nearest of a random sample of points.
+            // Sampling distributes targets proportional to point density.
+            var bestPos = vec3f(0.0);
+            var bestDist = 1e30;
+            for (var s = 0u; s < INIT_SAMPLES; s++) {
+                let pi = pcg(seed + s * 97u) % pointParams.count;
+                let p = convertPoint(points[pi].position.xyz);
+                let d = distance(p, boid.position);
+                if (d < bestDist) {
+                    bestDist = d;
+                    bestPos = p;
                 }
             }
+            boid.goal = vec4f(bestPos, 1.0);
+        } else {
+            // Track: only adopt sampled points close to the current target, so
+            // the target follows its local cluster and never hops to a distant one.
+            var snapPos = boid.goal.xyz;
+            var snapDist = TRACK_RADIUS;
+            var nearPos = vec3f(0.0);
+            var nearDist = 1e30;
+            for (var s = 0u; s < TRACK_SAMPLES; s++) {
+                let pi = pcg(seed + s * 57u + 1u) % pointParams.count;
+                let p = convertPoint(points[pi].position.xyz);
+                let d = distance(p, boid.goal.xyz);
+                if (d < nearDist) {
+                    nearDist = d;
+                    nearPos = p;
+                }
+                if (d < snapDist) {
+                    snapDist = d;
+                    snapPos = p;
+                }
+            }
+            if (snapDist < TRACK_RADIUS) {
+                boid.goal = vec4f(snapPos, 1.0);
+            } else {
+                // Local cluster is gone: drift slowly back toward the cloud.
+                boid.goal = vec4f(boid.goal.xyz + (nearPos - boid.goal.xyz) * REJOIN_RATE, 1.0);
+            }
         }
-    }
 
-    boid.velocity += closeD * params.avoidFactor;
+        // Deterministic per-boid jitter spreads boids sharing nearby targets.
+        let jseed = index * 3u;
+        let jitter = (vec3f(rand01(jseed), rand01(jseed + 1u), rand01(jseed + 2u)) * 2.0 - vec3f(1.0)) * params.jitterRadius;
+        boid.velocity += (boid.goal.xyz + jitter - boid.position) * params.targetFactor;
+    }
 
     // avoid edges of box
     boid.velocity -= select(vec3f(0), vec3f(params.turnFactor), boid.position > vec3f(10));

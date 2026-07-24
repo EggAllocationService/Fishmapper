@@ -15,8 +15,7 @@
 struct alignas(16) Boid {
     float4 position;
     float4 velocity;
-    float4 destination;
-    uint32_t counter;
+    float4 goal;
 };
 
 struct SimParams {
@@ -31,6 +30,11 @@ struct SimParams {
     float minSpeed;
     float maxBias;
     float biasIncrement;
+    float targetFactor;
+    float jitterRadius;
+    unsigned int frame;
+    float pad1;
+    float pad2;
 };
 
 struct BoidImmediates {
