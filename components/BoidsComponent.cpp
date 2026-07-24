@@ -108,13 +108,13 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .pad2 = 0
     };
 
-    updatePipeline->SetBinding(0, 1, boidsBuffer);
     updatePipeline->SetBinding(0, 0, Params);
+    updatePipeline->SetBinding(0, 1, boidsBuffer);
     updatePipeline->SetBinding(1, 0, (*cloud)->pointCount);
     updatePipeline->SetBinding(1, 1, (*cloud)->points);
 
-    applyPipeline->SetBinding(0, 1, boidsBuffer);
     applyPipeline->SetBinding(0, 0, Params);
+    applyPipeline->SetBinding(0, 1, boidsBuffer);
 
     updatePipeline->CommitBindings();
     applyPipeline->CommitBindings();
