@@ -22,7 +22,7 @@ struct Params {
     targetFactor: f32,
     jitterRadius: f32,
     frame: u32,
-    pad1: f32,
+    wanderFactor: f32,
     pad2: f32
 }
 struct PointXYZRGB {
@@ -56,8 +56,8 @@ fn rand01(n: u32) -> f32 {
 }
 
 const INIT_SAMPLES: u32 = 48u;
-const TRACK_SAMPLES: u32 = 8u;
-const TRACK_RADIUS: f32 = 1.5;
+const TRACK_SAMPLES: u32 = 12u;
+const TRACK_RADIUS: f32 = 2.0;
 const REJOIN_RATE: f32 = 0.02;
 fn convertPoint(p: vec3f) -> vec3f {
     return (p * 10) - vec3f(0, 0, 10);
@@ -119,10 +119,11 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
             }
             boid.goal = vec4f(bestPos, 1.0);
         } else {
-            // Track: only adopt sampled points close to the current target, so
-            // the target follows its local cluster and never hops to a distant one.
+            // Track: adopt a uniformly random sampled point close to the current
+            // target (reservoir sampling). Random choice makes goals diffuse over
+            // the local cluster instead of collapsing onto the nearest point.
             var snapPos = boid.goal.xyz;
-            var snapDist = TRACK_RADIUS;
+            var candidates = 0u;
             var nearPos = vec3f(0.0);
             var nearDist = 1e30;
             for (var s = 0u; s < TRACK_SAMPLES; s++) {
@@ -133,12 +134,14 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
                     nearDist = d;
                     nearPos = p;
                 }
-                if (d < snapDist) {
-                    snapDist = d;
-                    snapPos = p;
+                if (d < TRACK_RADIUS) {
+                    candidates++;
+                    if (pcg(seed + s * 31u) % candidates == 0u) {
+                        snapPos = p;
+                    }
                 }
             }
-            if (snapDist < TRACK_RADIUS) {
+            if (candidates > 0u) {
                 boid.goal = vec4f(snapPos, 1.0);
             } else {
                 // Local cluster is gone: drift slowly back toward the cloud.
@@ -149,7 +152,14 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         // Deterministic per-boid jitter spreads boids sharing nearby targets.
         let jseed = index * 3u;
         let jitter = (vec3f(rand01(jseed), rand01(jseed + 1u), rand01(jseed + 2u)) * 2.0 - vec3f(1.0)) * params.jitterRadius;
-        boid.velocity += (boid.goal.xyz + jitter - boid.position) * params.targetFactor;
+
+        // Weaken the pull and add wander when crowded, so dense regions spread out.
+        let crowd = f32(neighbors);
+        let pull = params.targetFactor / (1.0 + crowd * 0.25);
+        boid.velocity += (boid.goal.xyz + jitter - boid.position) * pull;
+
+        let wander = vec3f(rand01(seed + 101u), rand01(seed + 102u), rand01(seed + 103u)) * 2.0 - vec3f(1.0);
+        boid.velocity += wander * params.wanderFactor * (1.0 + crowd * 0.5);
     }
 
     // avoid edges of box

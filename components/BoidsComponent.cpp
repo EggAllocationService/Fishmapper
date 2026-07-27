@@ -102,9 +102,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .maxBias = 0.01,
         .biasIncrement = 0.004,
         .targetFactor = 0.03,
-        .jitterRadius = 0.4,
+        .jitterRadius = 0.8,
         .frame = 0,
-        .pad1 = 0,
+        .wanderFactor = 0.08,
         .pad2 = 0
     };
 

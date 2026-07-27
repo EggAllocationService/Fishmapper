@@ -33,7 +33,7 @@ struct SimParams {
     float targetFactor;
     float jitterRadius;
     unsigned int frame;
-    float pad1;
+    float wanderFactor;
     float pad2;
 };
 
