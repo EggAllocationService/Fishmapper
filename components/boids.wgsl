@@ -118,5 +118,6 @@ var<immediate> im: Immediates;
 @compute @workgroup_size(1)
 fn apply_velocities(@builtin(global_invocation_id) idx: vec3u) {
     let i = idx.x;
+
     boids[i].position += boids[i].velocity * im.deltaTime;
 }

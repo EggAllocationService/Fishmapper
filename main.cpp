@@ -3,6 +3,7 @@
 #include "Engine.h"
 #include "3d/mesh/GizmoComponent.h"
 #include "components/BoidsComponent.h"
+#include "components/TexturedModelComponent.h"
 #include "pointmapper/kinect2/Kinect2Device.h"
 #include "pointmapper/pipeline/PointmapperPipeline.h"
 #include "pointmapper/pipeline/nodes/CreatePointCloudNode.h"
@@ -32,12 +33,21 @@ public:
     }
 };
 
+class Environment : public glengine::world::Actor {
+public:
+    Environment() {
+        CreateComponent<TexturedModelComponent>("/models/env.obj", "/textures/sand.jpg");
+    }
+    void Update(double deltaTime) override {}
+};
+
 int main() {
     auto engine = new glengine::Engine("Fishmapper", {1280, 720});
     engine->SetAllowNonFocusedPawnInput(true);
     engine->GetResourceManager()->MountPak("/", embed_boidresources_pak, embed_boidresources_pak_length);
 
     registerBoids(engine->GetRenderer());
+    TexturedModelComponent::RegisterPipelines(engine->GetRenderer());
 
     auto pipeline = new pointmapper::pipeline::PointmapperPipeline(engine->GetRenderer()->GetDevice(), wgpuDeviceGetQueue(engine->GetRenderer()->GetDevice()));
     auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new Kinect2Device());
@@ -66,7 +76,9 @@ int main() {
     engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 10, -10});
 
     engine->SpawnActor<PointActor>(cloud->cloud);
-
+    auto env = engine->SpawnActor<Environment>();
+    env->GetTransform()->SetScale({15, 20, 15});
+    env->GetTransform()->SetPosition({0, 0, 0});
 
     while (true) {
         glfwPollEvents();

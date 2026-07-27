@@ -12,18 +12,24 @@ FetchContent_MakeAvailable(pointmapper)
 
 add_executable(Fishmapper main.cpp
         components/BoidsComponent.cpp
-        components/BoidsComponent.h)
+        components/BoidsComponent.h
+        components/TexturedModelComponent.cpp
+        components/TexturedModelComponent.h)
 build_pak(
         NAME boidresources
         SOURCES
             assets/goldfish_fixed.obj
+            assets/cylinder.obj
+            assets/sand.jpg
         NAMES
             /models/goldfish.obj
+            /models/env.obj
+            /textures/sand.jpg
 )
 
 create_resource_library(
         NAME BoidShaders
-        SOURCES components/boids.wgsl components/boidshaders.wgsl
+        SOURCES components/boids.wgsl components/boidshaders.wgsl components/texture.wgsl
         RAW_SOURCES boidresources.pak
 )
 
