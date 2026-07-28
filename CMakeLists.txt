@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 FetchContent_Declare(pointmapper
         GIT_REPOSITORY https://github.com/EggAllocationService/Pointmapper.git
-        GIT_TAG c53827b9
+        GIT_TAG d7d874f
 )
 FetchContent_MakeAvailable(pointmapper)
 

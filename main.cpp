@@ -21,7 +21,7 @@ public:
         auto c = CreateComponent<PointCloudComponent>();
         c->SetCloudNode(cloud);
         c->GetTransform()->SetScale({10, 10, 10});
-        c->GetTransform()->SetPosition({0, 0, -10});
+        c->GetTransform()->SetPosition({0, 0, -13});
 
         CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
             ->GetTransform()
