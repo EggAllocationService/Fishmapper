@@ -48,7 +48,7 @@ fn pcg(n: u32) -> u32 {
     return (h >> 22u) ^ h;
 }
 fn convertPoint(p: vec3f) -> vec3f {
-    return (p * 10) - vec3f(0, 0, 13);
+    return (p * 8) - vec3f(0, 0, 13);
 }
 @compute @workgroup_size(64)
 fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
