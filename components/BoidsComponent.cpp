@@ -10,84 +10,209 @@
 #include "3d/mesh/StaticMesh.h"
 
 void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
-    auto kernels = renderer->CompileShader(embed_boids_wgsl);
-    WGPUBindGroupLayoutEntry entries[2] = {
+    WGPUBindGroupLayoutEntry boidEntries[2] = {
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
     };
-    WGPUBindGroupLayoutEntry pointEntries[2] = {
-        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
-        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
-    };
-    entries[0].visibility = WGPUShaderStage_Compute;
-    entries[1].visibility = WGPUShaderStage_Compute;
-    entries[1].binding = 1;
-    pointEntries[0].visibility = WGPUShaderStage_Compute;
-    pointEntries[1].visibility = WGPUShaderStage_Compute;
-    pointEntries[1].binding = 1;
-
-    entries[0].buffer = {
+    boidEntries[0].visibility = WGPUShaderStage_Compute;
+    boidEntries[0].buffer = {
         .nextInChain = nullptr,
         .type = WGPUBufferBindingType_Uniform,
         .hasDynamicOffset = false,
         .minBindingSize = sizeof(SimParams)
     };
-    entries[1].buffer = {
+    boidEntries[1].binding = 1;
+    boidEntries[1].visibility = WGPUShaderStage_Compute;
+    boidEntries[1].buffer = {
         .nextInChain = nullptr,
         .type = WGPUBufferBindingType_Storage,
         .hasDynamicOffset = false,
-        .minBindingSize = 0
+        .minBindingSize = sizeof(Boid)
     };
 
+    WGPUBindGroupLayoutEntry foodFieldEntries[3] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
+    };
+    foodFieldEntries[0].visibility = WGPUShaderStage_Compute;
+    foodFieldEntries[0].texture = {
+        .nextInChain = nullptr,
+        .sampleType = WGPUTextureSampleType_Float,
+        .viewDimension = WGPUTextureViewDimension_3D,
+        .multisampled = false
+    };
+    foodFieldEntries[1].binding = 1;
+    foodFieldEntries[1].visibility = WGPUShaderStage_Compute;
+    foodFieldEntries[1].sampler = {
+        .nextInChain = nullptr,
+        .type = WGPUSamplerBindingType_Filtering
+    };
+    foodFieldEntries[2].binding = 2;
+    foodFieldEntries[2].visibility = WGPUShaderStage_Compute;
+    foodFieldEntries[2].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_Uniform,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(VoxelParams)
+    };
+
+    WGPUBindGroupLayoutDescriptor boidLayouts[2] = {
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 2,
+            .entries = boidEntries
+        },
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 3,
+            .entries = foodFieldEntries
+        }
+    };
+    auto boidKernels = renderer->CompileShader(embed_boids_wgsl);
+    renderer->BuildComputePipeline("BoidsUpdate", boidKernels, "update_boids", {boidLayouts, 2}, 0);
+    renderer->BuildComputePipeline("BoidsApply", boidKernels, "apply_velocities", {boidLayouts, 1}, sizeof(BoidImmediates));
+
+    WGPUBindGroupLayoutEntry pointEntries[2] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
+    };
+    pointEntries[0].visibility = WGPUShaderStage_Compute;
     pointEntries[0].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_ReadOnlyStorage,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(float) * 4
+    };
+    pointEntries[1].binding = 1;
+    pointEntries[1].visibility = WGPUShaderStage_Compute;
+    pointEntries[1].buffer = {
         .nextInChain = nullptr,
         .type = WGPUBufferBindingType_ReadOnlyStorage,
         .hasDynamicOffset = false,
         .minBindingSize = sizeof(uint32_t) * 4
     };
-    pointEntries[1].buffer = {
+
+    WGPUBindGroupLayoutEntry voxelEntries[3] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
+    };
+    voxelEntries[0].visibility = WGPUShaderStage_Compute;
+    voxelEntries[0].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_Storage,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(uint32_t)
+    };
+    voxelEntries[1].binding = 1;
+    voxelEntries[1].visibility = WGPUShaderStage_Compute;
+    voxelEntries[1].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_Storage,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(uint32_t)
+    };
+    voxelEntries[2].binding = 2;
+    voxelEntries[2].visibility = WGPUShaderStage_Compute;
+    voxelEntries[2].buffer = {
+        .nextInChain = nullptr,
+        .type = WGPUBufferBindingType_Uniform,
+        .hasDynamicOffset = false,
+        .minBindingSize = sizeof(VoxelParams)
+    };
+
+    WGPUBindGroupLayoutEntry voxelBoidEntries[1] = {WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT};
+    voxelBoidEntries[0].visibility = WGPUShaderStage_Compute;
+    voxelBoidEntries[0].buffer = {
         .nextInChain = nullptr,
         .type = WGPUBufferBindingType_ReadOnlyStorage,
         .hasDynamicOffset = false,
-        .minBindingSize = 0
+        .minBindingSize = sizeof(Boid)
     };
 
-    WGPUBindGroupLayoutDescriptor desc[2] = {
+    WGPUBindGroupLayoutEntry vectorFieldEntries[1] = {WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT};
+    vectorFieldEntries[0].visibility = WGPUShaderStage_Compute;
+    vectorFieldEntries[0].storageTexture = {
+        .nextInChain = nullptr,
+        .access = WGPUStorageTextureAccess_WriteOnly,
+        .format = WGPUTextureFormat_RGBA16Float,
+        .viewDimension = WGPUTextureViewDimension_3D
+    };
+
+    WGPUBindGroupLayoutDescriptor voxelLayouts[4] = {
         {
             .nextInChain = nullptr,
             .label = {},
             .entryCount = 2,
-            .entries = &entries[0]
+            .entries = pointEntries
         },
         {
             .nextInChain = nullptr,
             .label = {},
-            .entryCount = 2,
-            .entries = &pointEntries[0]
+            .entryCount = 3,
+            .entries = voxelEntries
+        },
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 1,
+            .entries = voxelBoidEntries
+        },
+        {
+            .nextInChain = nullptr,
+            .label = {},
+            .entryCount = 1,
+            .entries = vectorFieldEntries
         }
     };
-    renderer->BuildComputePipeline("BoidsUpdate", kernels, "update_boids", {desc, 2}, 0);
-    renderer->BuildComputePipeline("BoidsApply", kernels, "apply_velocities", {desc, 1}, sizeof(BoidImmediates));
+    auto voxelKernels = renderer->CompileShader(embed_voxels_wgsl);
+    renderer->BuildComputePipeline("ClearVoxels", voxelKernels, "clear_voxels", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("VoxelizePoints", voxelKernels, "voxelize_points", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("EatPoints", voxelKernels, "eat_points", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("GenerateVectorField", voxelKernels, "generate_vector_field", {voxelLayouts, 4}, 0);
 
-    desc[0].entryCount = 1;
-    desc[0].entries = &entries[1];
-    entries[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
-    entries[1].visibility = WGPUShaderStage_Vertex;
-    entries[1].binding = 0;
+    WGPUBindGroupLayoutDescriptor renderLayout = {
+        .nextInChain = nullptr,
+        .label = {},
+        .entryCount = 1,
+        .entries = &boidEntries[1]
+    };
+    boidEntries[1].buffer.type = WGPUBufferBindingType_ReadOnlyStorage;
+    boidEntries[1].visibility = WGPUShaderStage_Vertex;
+    boidEntries[1].binding = 0;
 
     auto shaders = renderer->CompileShader(embed_boidshaders_wgsl);
-    renderer->BuildRenderPipeline("Boids", shaders, nullptr, {desc, 1}, sizeof(mat4), nullptr);
-
+    renderer->BuildRenderPipeline("Boids", shaders, nullptr, {&renderLayout, 1}, sizeof(mat4), nullptr);
 }
 
 BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
     auto renderer = GetEngine()->GetRenderer();
     boidsBuffer = renderer->CreateRawBuffer("boids data", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(Boid) * count);
+    pointDensityBuffer = renderer->CreateRawBuffer("voxel density", WGPUBufferUsage_Storage, sizeof(uint32_t) * VoxelCount);
+    eatenPointBuffer = renderer->CreateRawBuffer("eaten voxel density", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(uint32_t) * VoxelCount);
+    foodFieldTexture = renderer->CreateTexture("food vector field", WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, WGPUTextureFormat_RGBA16Float, VoxelResolution, VoxelResolution, VoxelResolution);
     boidsCount = count;
+    pointCapacity = (*cloud)->maximumPointCount;
+
+    WGPUSamplerDescriptor samplerDescriptor = WGPU_SAMPLER_DESCRIPTOR_INIT;
+    samplerDescriptor.addressModeU = WGPUAddressMode_ClampToEdge;
+    samplerDescriptor.addressModeV = WGPUAddressMode_ClampToEdge;
+    samplerDescriptor.addressModeW = WGPUAddressMode_ClampToEdge;
+    samplerDescriptor.magFilter = WGPUFilterMode_Linear;
+    samplerDescriptor.minFilter = WGPUFilterMode_Linear;
+    foodFieldSampler = wgpuDeviceCreateSampler(renderer->GetDevice(), &samplerDescriptor);
 
     updatePipeline = renderer->GetComputePipelineByName("BoidsUpdate")->CreateInstance();
     applyPipeline = renderer->GetComputePipelineByName("BoidsApply")->CreateInstance();
+    clearVoxelsPipeline = renderer->GetComputePipelineByName("ClearVoxels")->CreateInstance();
+    voxelizePointsPipeline = renderer->GetComputePipelineByName("VoxelizePoints")->CreateInstance();
+    eatPointsPipeline = renderer->GetComputePipelineByName("EatPoints")->CreateInstance();
+    generateVectorFieldPipeline = renderer->GetComputePipelineByName("GenerateVectorField")->CreateInstance();
     Params = renderer->AllocateObject<SimParams>(WGPUBufferUsage_Uniform);
+    voxelParams = renderer->AllocateObject<VoxelParams>(WGPUBufferUsage_Uniform);
 
     *Params = {
         .count = boidsCount,
@@ -100,38 +225,76 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         .maxSpeed = 2,
         .minSpeed = 1,
         .maxBias = 0.01,
-        .biasIncrement = 0.004
+        .biasIncrement = 0.004,
+        .foodSeekingFactor = 0.4
     };
+    *voxelParams = {
+        .bounds = 10.0,
+        .resolution = VoxelResolution,
+        .foodPerBoid = 1,
+        .padding = 0
+    };
+    Params.Commit();
+    voxelParams.Commit();
 
-    updatePipeline->SetBinding(0, 1, boidsBuffer);
+    WGPUBindGroupEntry samplerEntry = WGPU_BIND_GROUP_ENTRY_INIT;
+    samplerEntry.binding = 1;
+    samplerEntry.sampler = foodFieldSampler;
     updatePipeline->SetBinding(0, 0, Params);
-    updatePipeline->SetBinding(1, 0, (*cloud)->pointCount);
-    updatePipeline->SetBinding(1, 1, (*cloud)->points);
-
-    applyPipeline->SetBinding(0, 1, boidsBuffer);
-    applyPipeline->SetBinding(0, 0, Params);
-
+    updatePipeline->SetBinding(0, 1, boidsBuffer);
+    updatePipeline->SetBinding(1, 0, *foodFieldTexture);
+    updatePipeline->SetBinding(1, samplerEntry);
+    updatePipeline->SetBinding(1, 2, voxelParams);
     updatePipeline->CommitBindings();
+
+    applyPipeline->SetBinding(0, 0, Params);
+    applyPipeline->SetBinding(0, 1, boidsBuffer);
     applyPipeline->CommitBindings();
+
+    auto bindVoxelPipeline = [&](const std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline>& pipeline) {
+        pipeline->SetBinding(0, 0, (*cloud)->points);
+        pipeline->SetBinding(0, 1, (*cloud)->pointCount);
+        pipeline->SetBinding(1, 0, pointDensityBuffer);
+        pipeline->SetBinding(1, 1, eatenPointBuffer);
+        pipeline->SetBinding(1, 2, voxelParams);
+        pipeline->SetBinding(2, 0, boidsBuffer);
+        pipeline->SetBinding(3, 0, *foodFieldTexture);
+        pipeline->CommitBindings();
+    };
+    bindVoxelPipeline(clearVoxelsPipeline);
+    bindVoxelPipeline(voxelizePointsPipeline);
+    bindVoxelPipeline(eatPointsPipeline);
+    bindVoxelPipeline(generateVectorFieldPipeline);
 
     renderPipeline = renderer->GetRenderPipelineByName("Boids")->CreateInstance();
     renderPipeline->SetBinding(1, 0, boidsBuffer);
     renderPipeline->CommitBindings();
 
     auto cube = GetEngine()->GetResourceManager()->GetResource<glengine::world::mesh::StaticMesh>("/models/goldfish.obj");
-
     mesh = cube->mesh;
 
+    std::vector<uint32_t> emptyEatenGrid(VoxelCount, 0);
+    renderer->GetTransferManager()->Transfer(eatenPointBuffer, 0, emptyEatenGrid.data(), sizeof(uint32_t) * VoxelCount);
     initPositionsAndVelocities();
+}
+
+BoidsComponent::~BoidsComponent() {
+    if (foodFieldSampler != nullptr) {
+        wgpuSamplerRelease(foodFieldSampler);
+    }
 }
 
 void BoidsComponent::Update(double deltaTime) {
     Params.Commit();
 
     BoidImmediates immediates = {
-        .deltaTime = (float)deltaTime
+        .deltaTime = static_cast<float>(deltaTime)
     };
     auto pass = GetEngine()->GetRenderer()->BeginComputePass();
+    clearVoxelsPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
+    voxelizePointsPipeline->DispatchWorkgroups(pass, (pointCapacity + 63) / 64, 1, 1, nullptr);
+    eatPointsPipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);
+    generateVectorFieldPipeline->DispatchWorkgroups(pass, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, nullptr);
     updatePipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);
     applyPipeline->DispatchWorkgroups(pass, boidsCount, 1, 1, &immediates);
     GetEngine()->GetRenderer()->CommitComputePass(pass);

@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD 20)
 include(FetchContent)
 FetchContent_Declare(pointmapper
         GIT_REPOSITORY https://github.com/EggAllocationService/Pointmapper.git
-        GIT_TAG bb59a4ce5586dbee5627c1ce8a9eefea3ff8ef43
+        GIT_TAG 82ebd4bbf425bd25d5769203eb5dc5ed6bb8cfcc
 )
 FetchContent_MakeAvailable(pointmapper)
 
@@ -29,7 +29,7 @@ build_pak(
 
 create_resource_library(
         NAME BoidShaders
-        SOURCES components/boids.wgsl components/boidshaders.wgsl components/texture.wgsl
+        SOURCES components/boids.wgsl components/boidshaders.wgsl components/texture.wgsl components/voxels.wgsl
         RAW_SOURCES boidresources.pak
 )
 

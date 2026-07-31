@@ -1,8 +1,8 @@
 
 struct Boid {
-    position: vec3f,
-    velocity: vec3f,
-    destination: vec3f,
+    position: vec4f,
+    velocity: vec4f,
+    destination: vec4f,
     counter: u32
 }
 
@@ -47,11 +47,11 @@ fn vs(i: VertexIn) -> VertexOut {
     let MVP = camera.projectionViewMatrix * m.m;
     var result: VertexOut;
 
-    let forward = -normalize(boids[i.idx].velocity);
+    let forward = -normalize(boids[i.idx].velocity.xyz);
     let right = normalize(cross(worldUp, forward));
     let up = cross(forward, right);
     let boidRotation = mat3x3<f32>(right, up, forward);
-    result.pos = MVP * vec4f((boidRotation * i.pos * 0.5) + boids[i.idx].position, 1.0);
+    result.pos = MVP * vec4f((boidRotation * i.pos * 0.5) + boids[i.idx].position.xyz, 1.0);
     result.normal = (m.m * vec4f(boidRotation * i.normal, 1)).xyz;
     result.uv = i.uv;
     return result;
