@@ -16,7 +16,7 @@
 class PointActor : public glengine::world::Actor {
 public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-        //auto component = CreateComponent<BoidsComponent>(1024, cloud);
+        auto component = CreateComponent<BoidsComponent>(512, cloud);
 
         auto c = CreateComponent<PointCloudComponent>();
         c->SetCloudNode(cloud);
@@ -73,7 +73,7 @@ int main() {
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());
     engine->Update();
-    engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 10, -10});
+    engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 0, -10});
 
     engine->SpawnActor<PointActor>(cloud->cloud);
     auto env = engine->SpawnActor<Environment>();
