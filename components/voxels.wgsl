@@ -41,6 +41,13 @@ var<storage, read> boids: array<Boid>;
 @group(3) @binding(0)
 var gradientTexture: texture_storage_3d<rgba16float, write>;
 
+@group(1) @binding(3)
+var<storage, read_write> blurredDensityX: array<f32>;
+@group(1) @binding(4)
+var<storage, read_write> blurredDensityY: array<f32>;
+@group(1) @binding(5)
+var<storage, read_write> blurredDensityZ: array<f32>;
+
 fn is_inside_bounds(position: vec3f) -> bool {
     let normalized = (position + vec3f(densityParams.bounds)) / (2.0 * densityParams.bounds);
     return all(normalized >= vec3f(0.0)) && all(normalized < vec3f(1.0));
@@ -60,28 +67,19 @@ fn index_to_voxel(index: u32) -> vec3u {
     return vec3u(index / resolutionSquared, (index / densityParams.resolution) % densityParams.resolution, index % densityParams.resolution);
 }
 
+fn clamped_voxel(voxel: vec3i) -> vec3u {
+    let maximumCoordinate = i32(densityParams.resolution) - 1;
+    return vec3u(clamp(voxel, vec3i(0), vec3i(maximumCoordinate)));
+}
+
 fn remaining_points(index: u32) -> u32 {
     let density = atomicLoad(&pointDensityGrid[index]);
     let eaten = atomicLoad(&eatenPointGrid[index]);
     return density - min(density, eaten);
 }
 
-fn remaining_points_at(voxel: vec3i) -> f32 {
-    let maximumCoordinate = i32(densityParams.resolution) - 1;
-    let clampedVoxel = vec3u(clamp(voxel, vec3i(0), vec3i(maximumCoordinate)));
-    return f32(remaining_points(voxel_to_index(clampedVoxel)));
-}
-
-fn blurred_density(voxel: vec3i) -> f32 {
-    var totalDensity = 0.0;
-    for (var x = -1; x <= 1; x++) {
-        for (var y = -1; y <= 1; y++) {
-            for (var z = -1; z <= 1; z++) {
-                totalDensity += remaining_points_at(voxel + vec3i(x, y, z));
-            }
-        }
-    }
-    return totalDensity / 27.0;
+fn gaussian_weight(offset: i32) -> f32 {
+    return exp(-f32(offset * offset) / 50.0);
 }
 
 fn convert_point(position: vec3f) -> vec3f {
@@ -137,6 +135,70 @@ fn eat_points(@builtin(global_invocation_id) invocation: vec3u) {
     }
 }
 
+@compute @workgroup_size(64)
+fn blur_density_x(@builtin(global_invocation_id) invocation: vec3u) {
+    let index = invocation.x;
+    let voxelCount = densityParams.resolution * densityParams.resolution * densityParams.resolution;
+    if (index >= voxelCount) {
+        return;
+    }
+
+    let voxel = vec3i(index_to_voxel(index));
+    var weightedDensity = 0.0;
+    var totalWeight = 0.0;
+    for (var offset = -10; offset <= 10; offset++) {
+        let weight = gaussian_weight(offset);
+        let sampleVoxel = clamped_voxel(voxel + vec3i(offset, 0, 0));
+        weightedDensity += f32(remaining_points(voxel_to_index(sampleVoxel))) * weight;
+        totalWeight += weight;
+    }
+    blurredDensityX[index] = weightedDensity / totalWeight;
+}
+
+@compute @workgroup_size(64)
+fn blur_density_y(@builtin(global_invocation_id) invocation: vec3u) {
+    let index = invocation.x;
+    let voxelCount = densityParams.resolution * densityParams.resolution * densityParams.resolution;
+    if (index >= voxelCount) {
+        return;
+    }
+
+    let voxel = vec3i(index_to_voxel(index));
+    var weightedDensity = 0.0;
+    var totalWeight = 0.0;
+    for (var offset = -10; offset <= 10; offset++) {
+        let weight = gaussian_weight(offset);
+        let sampleVoxel = clamped_voxel(voxel + vec3i(0, offset, 0));
+        weightedDensity += blurredDensityX[voxel_to_index(sampleVoxel)] * weight;
+        totalWeight += weight;
+    }
+    blurredDensityY[index] = weightedDensity / totalWeight;
+}
+
+@compute @workgroup_size(64)
+fn blur_density_z(@builtin(global_invocation_id) invocation: vec3u) {
+    let index = invocation.x;
+    let voxelCount = densityParams.resolution * densityParams.resolution * densityParams.resolution;
+    if (index >= voxelCount) {
+        return;
+    }
+
+    let voxel = vec3i(index_to_voxel(index));
+    var weightedDensity = 0.0;
+    var totalWeight = 0.0;
+    for (var offset = -10; offset <= 10; offset++) {
+        let weight = gaussian_weight(offset);
+        let sampleVoxel = clamped_voxel(voxel + vec3i(0, 0, offset));
+        weightedDensity += blurredDensityY[voxel_to_index(sampleVoxel)] * weight;
+        totalWeight += weight;
+    }
+    blurredDensityZ[index] = weightedDensity / totalWeight;
+}
+
+fn blurred_density_at(voxel: vec3i) -> f32 {
+    return blurredDensityZ[voxel_to_index(clamped_voxel(voxel))];
+}
+
 @compute @workgroup_size(4, 4, 4)
 fn generate_vector_field(@builtin(global_invocation_id) invocation: vec3u) {
     if (any(invocation >= vec3u(densityParams.resolution))) {
@@ -145,13 +207,11 @@ fn generate_vector_field(@builtin(global_invocation_id) invocation: vec3u) {
 
     let voxel = vec3i(invocation);
     let gradient = vec3f(
-        blurred_density(voxel + vec3i(1, 0, 0)) - blurred_density(voxel - vec3i(1, 0, 0)),
-        blurred_density(voxel + vec3i(0, 1, 0)) - blurred_density(voxel - vec3i(0, 1, 0)),
-        blurred_density(voxel + vec3i(0, 0, 1)) - blurred_density(voxel - vec3i(0, 0, 1))
+        blurred_density_at(voxel + vec3i(1, 0, 0)) - blurred_density_at(voxel - vec3i(1, 0, 0)),
+        blurred_density_at(voxel + vec3i(0, 1, 0)) - blurred_density_at(voxel - vec3i(0, 1, 0)),
+        blurred_density_at(voxel + vec3i(0, 0, 1)) - blurred_density_at(voxel - vec3i(0, 0, 1))
     );
     let gradientMagnitude = length(gradient);
     let direction = select(vec3f(0.0), gradient / gradientMagnitude, gradientMagnitude > 0.0);
-    let localFood = blurred_density(voxel);
-    let strength = gradientMagnitude / (gradientMagnitude + localFood + 1.0);
-    textureStore(gradientTexture, voxel, vec4f(direction, strength));
+    textureStore(gradientTexture, voxel, vec4f(direction, min(1.0, gradientMagnitude)));
 }

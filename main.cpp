@@ -16,7 +16,7 @@
 class PointActor : public glengine::world::Actor {
 public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-        auto component = CreateComponent<BoidsComponent>(1024, cloud);
+        //auto component = CreateComponent<BoidsComponent>(1024, cloud);
 
         auto c = CreateComponent<PointCloudComponent>();
         c->SetCloudNode(cloud);

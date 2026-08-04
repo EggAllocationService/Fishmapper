@@ -95,7 +95,10 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
         .minBindingSize = sizeof(uint32_t) * 4
     };
 
-    WGPUBindGroupLayoutEntry voxelEntries[3] = {
+    WGPUBindGroupLayoutEntry voxelEntries[6] = {
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
+        WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT,
         WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT
@@ -123,6 +126,16 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
         .hasDynamicOffset = false,
         .minBindingSize = sizeof(VoxelParams)
     };
+    for (unsigned int i = 3; i < 6; i++) {
+        voxelEntries[i].binding = i;
+        voxelEntries[i].visibility = WGPUShaderStage_Compute;
+        voxelEntries[i].buffer = {
+            .nextInChain = nullptr,
+            .type = WGPUBufferBindingType_Storage,
+            .hasDynamicOffset = false,
+            .minBindingSize = sizeof(float)
+        };
+    }
 
     WGPUBindGroupLayoutEntry voxelBoidEntries[1] = {WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT};
     voxelBoidEntries[0].visibility = WGPUShaderStage_Compute;
@@ -152,7 +165,7 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
         {
             .nextInChain = nullptr,
             .label = {},
-            .entryCount = 3,
+            .entryCount = 6,
             .entries = voxelEntries
         },
         {
@@ -172,6 +185,9 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
     renderer->BuildComputePipeline("ClearVoxels", voxelKernels, "clear_voxels", {voxelLayouts, 4}, 0);
     renderer->BuildComputePipeline("VoxelizePoints", voxelKernels, "voxelize_points", {voxelLayouts, 4}, 0);
     renderer->BuildComputePipeline("EatPoints", voxelKernels, "eat_points", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("BlurDensityX", voxelKernels, "blur_density_x", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("BlurDensityY", voxelKernels, "blur_density_y", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("BlurDensityZ", voxelKernels, "blur_density_z", {voxelLayouts, 4}, 0);
     renderer->BuildComputePipeline("GenerateVectorField", voxelKernels, "generate_vector_field", {voxelLayouts, 4}, 0);
 
     WGPUBindGroupLayoutDescriptor renderLayout = {
@@ -193,6 +209,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     boidsBuffer = renderer->CreateRawBuffer("boids data", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(Boid) * count);
     pointDensityBuffer = renderer->CreateRawBuffer("voxel density", WGPUBufferUsage_Storage, sizeof(uint32_t) * VoxelCount);
     eatenPointBuffer = renderer->CreateRawBuffer("eaten voxel density", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(uint32_t) * VoxelCount);
+    blurredDensityXBuffer = renderer->CreateRawBuffer("x blurred voxel density", WGPUBufferUsage_Storage, sizeof(float) * VoxelCount);
+    blurredDensityYBuffer = renderer->CreateRawBuffer("y blurred voxel density", WGPUBufferUsage_Storage, sizeof(float) * VoxelCount);
+    blurredDensityZBuffer = renderer->CreateRawBuffer("z blurred voxel density", WGPUBufferUsage_Storage, sizeof(float) * VoxelCount);
     foodFieldTexture = renderer->CreateTexture("food vector field", WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, WGPUTextureFormat_RGBA16Float, VoxelResolution, VoxelResolution, VoxelResolution);
     boidsCount = count;
     pointCapacity = (*cloud)->maximumPointCount;
@@ -210,6 +229,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     clearVoxelsPipeline = renderer->GetComputePipelineByName("ClearVoxels")->CreateInstance();
     voxelizePointsPipeline = renderer->GetComputePipelineByName("VoxelizePoints")->CreateInstance();
     eatPointsPipeline = renderer->GetComputePipelineByName("EatPoints")->CreateInstance();
+    blurDensityXPipeline = renderer->GetComputePipelineByName("BlurDensityX")->CreateInstance();
+    blurDensityYPipeline = renderer->GetComputePipelineByName("BlurDensityY")->CreateInstance();
+    blurDensityZPipeline = renderer->GetComputePipelineByName("BlurDensityZ")->CreateInstance();
     generateVectorFieldPipeline = renderer->GetComputePipelineByName("GenerateVectorField")->CreateInstance();
     Params = renderer->AllocateObject<SimParams>(WGPUBufferUsage_Uniform);
     voxelParams = renderer->AllocateObject<VoxelParams>(WGPUBufferUsage_Uniform);
@@ -257,6 +279,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         pipeline->SetBinding(1, 0, pointDensityBuffer);
         pipeline->SetBinding(1, 1, eatenPointBuffer);
         pipeline->SetBinding(1, 2, voxelParams);
+        pipeline->SetBinding(1, 3, blurredDensityXBuffer);
+        pipeline->SetBinding(1, 4, blurredDensityYBuffer);
+        pipeline->SetBinding(1, 5, blurredDensityZBuffer);
         pipeline->SetBinding(2, 0, boidsBuffer);
         pipeline->SetBinding(3, 0, *foodFieldTexture);
         pipeline->CommitBindings();
@@ -264,6 +289,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     bindVoxelPipeline(clearVoxelsPipeline);
     bindVoxelPipeline(voxelizePointsPipeline);
     bindVoxelPipeline(eatPointsPipeline);
+    bindVoxelPipeline(blurDensityXPipeline);
+    bindVoxelPipeline(blurDensityYPipeline);
+    bindVoxelPipeline(blurDensityZPipeline);
     bindVoxelPipeline(generateVectorFieldPipeline);
 
     renderPipeline = renderer->GetRenderPipelineByName("Boids")->CreateInstance();
@@ -294,6 +322,9 @@ void BoidsComponent::Update(double deltaTime) {
     clearVoxelsPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
     voxelizePointsPipeline->DispatchWorkgroups(pass, (pointCapacity + 63) / 64, 1, 1, nullptr);
     eatPointsPipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);
+    blurDensityXPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
+    blurDensityYPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
+    blurDensityZPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
     generateVectorFieldPipeline->DispatchWorkgroups(pass, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, nullptr);
     updatePipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);
     applyPipeline->DispatchWorkgroups(pass, boidsCount, 1, 1, &immediates);

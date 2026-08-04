@@ -67,12 +67,18 @@ private:
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> clearVoxelsPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> voxelizePointsPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> eatPointsPipeline;
+    std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> blurDensityXPipeline;
+    std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> blurDensityYPipeline;
+    std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> blurDensityZPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> generateVectorFieldPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::GPUMesh> mesh;
 
     glengine::pipeline::wgpu::WrappedBuffer boidsBuffer;
     glengine::pipeline::wgpu::WrappedBuffer pointDensityBuffer;
     glengine::pipeline::wgpu::WrappedBuffer eatenPointBuffer;
+    glengine::pipeline::wgpu::WrappedBuffer blurredDensityXBuffer;
+    glengine::pipeline::wgpu::WrappedBuffer blurredDensityYBuffer;
+    glengine::pipeline::wgpu::WrappedBuffer blurredDensityZBuffer;
     std::shared_ptr<glengine::pipeline::wgpu::GPUTexture> foodFieldTexture;
     WGPUSampler foodFieldSampler = nullptr;
     glengine::pipeline::wgpu::GPUPointer<VoxelParams> voxelParams;
