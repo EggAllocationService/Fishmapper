@@ -71,7 +71,7 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         if (absD.x < params.visualRange && absD.y < params.visualRange && absD.z < params.visualRange) {
             let distance = length(delta);
             if (distance < params.protectedRange) {
-                closeD += delta;
+                closeD += delta * 0.03;
             } else if (distance < params.visualRange) {
                 avgPos += boids[i].position;
                 avgVel += boids[i].velocity;
@@ -88,15 +88,20 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
     }
 
     if (pointParams.count > 1) {
+        var pointVector = vec3f(0);
         for (var i = 0u; i < pointParams.count; i++) {
             let delta = boid.position - convertPoint(points[i].position.xyz);
-            let absD = abs(delta);
+            let absD  = abs(delta);
             if (absD.x < 3 && absD.y < 3 && absD.z < 3) {
                 let distance = length(delta);
                 if (distance < 3) {
-                    closeD += delta;
+                    pointVector += normalize(delta);
                 }
             }
+        }
+
+        if (pointVector.x != 0 || pointVector.y != 0 || pointVector.z != 0) {
+            boid.velocity += normalize(pointVector) * 0.05;
         }
     }
 

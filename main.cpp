@@ -55,7 +55,6 @@ int main() {
     auto mask = pipeline->CreateNode<pointmapper::pipeline::RemoveBackgroundNode>();
     auto blobs = pipeline->CreateNode<pointmapper::pipeline::RemoveBlobsNode>();
 
-
     mask->camera_params->Connect(cam->params);
     mask->frameData->Connect(cam->frameData);
     mask->inputDepthMap->Connect(cam->depth);
@@ -63,7 +62,6 @@ int main() {
     blobs->frameData->Connect(cam->frameData);
     blobs->camera_params->Connect(cam->params);
     blobs->inputDepthMap->Connect(mask->depthMap);
-
 
     cloud->camera_params->Connect(cam->params);
     cloud->color->Connect(cam->color);
@@ -73,7 +71,7 @@ int main() {
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());
     engine->Update();
-    engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 10, -10});
+    engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 0, -10});
 
     engine->SpawnActor<PointActor>(cloud->cloud);
     auto env = engine->SpawnActor<Environment>();

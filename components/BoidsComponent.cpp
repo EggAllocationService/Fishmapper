@@ -119,7 +119,6 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     renderPipeline->CommitBindings();
 
     auto cube = GetEngine()->GetResourceManager()->GetResource<glengine::world::mesh::StaticMesh>("/models/goldfish.obj");
-
     mesh = cube->mesh;
 
     initPositionsAndVelocities();
