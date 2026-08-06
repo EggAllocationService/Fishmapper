@@ -76,7 +76,7 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
         if (absD.x < params.visualRange && absD.y < params.visualRange && absD.z < params.visualRange) {
             let distance = length(delta);
             if (distance < params.protectedRange) {
-                closeD += delta;
+                closeD += delta * 0.5;
             } else if (distance < params.visualRange) {
                 avgPos += boids[i].position.xyz;
                 avgVel += boids[i].velocity.xyz;
