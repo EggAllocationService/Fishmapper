@@ -97,6 +97,10 @@ fn clear_voxels(@builtin(global_invocation_id) invocation: vec3u) {
     }
 
     atomicStore(&pointDensityGrid[index], 0u);
+    let eaten = atomicLoad(&eatenPointGrid[index]);
+    if (eaten > 3) {
+        atomicStore(&eatenPointGrid[index], eaten - 3);
+    }
 }
 
 @compute @workgroup_size(64)
