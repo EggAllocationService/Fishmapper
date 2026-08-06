@@ -13,7 +13,7 @@ Contains the main CPU-side logic for the boids simulation. ``registerBoids`` ins
 the binding layout for them, as well as the shaders needed for rendering. 
 
 The `BoidsComponent` constructor allocates the necessary gpu memory for the simulation and its parameters, then hooks those allocations up to the
-`ComputePipeline` and `RenderPipeline` instances. Finally it writes default parameters and random positions/velocities for all boids.
+`ComputePipeline` and `RenderPipeline` instances. Finally, it writes default parameters and random positions/velocities for all boids.
 
 ``BoidsComponent::Update`` is called every frame and dispatches the simulation, which is done in two phases to avoid read-after-write hazards. Finally,
 ``BoidsComponent::Render`` executes an instanced drawcall to render fish meshes at all the boids.
