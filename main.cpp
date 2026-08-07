@@ -80,7 +80,7 @@ int main() {
     env->GetTransform()->SetScale({15, 20, 15});
     env->GetTransform()->SetPosition({0, 0, 0});
 
-    while (true) {
+    while (!glfwWindowShouldClose(engine->GetWindow())) {
         glfwPollEvents();
         pipeline->Process();
         engine->Update();
