@@ -12,6 +12,7 @@
 #include "pointmapper/pipeline/nodes/RemoveBlobsNode.h"
 #include "pointmapper/rendering/pipelines.h"
 #include "pointmapper/rendering/PointCloudComponent.h"
+#include "BoidShaders.h"
 
 class PointActor : public glengine::world::Actor {
 public:
@@ -41,10 +42,26 @@ public:
     void Update(double deltaTime) override {}
 };
 
+struct alignas(16) FogParams {
+    float4 color;
+    float start;
+    float end;
+    float density;
+};
+
 int main() {
     auto engine = new glengine::Engine("Fishmapper", {1280, 720});
     engine->SetAllowNonFocusedPawnInput(true);
     engine->GetResourceManager()->MountPak("/", embed_boidresources_pak, embed_boidresources_pak_length);
+
+    auto fog = engine->GetRenderer()->CompilePostEffect(embed_fog_wgsl, sizeof(FogParams));
+    auto idx = engine->PushPostEffect(fog);
+    auto fogParams = new FogParams();
+    engine->SetPostData(idx, fogParams);
+    fogParams->color = float4(0, 0, 1, 1);
+    fogParams->start = 1;
+    fogParams->end = 20;
+    fogParams->density = 1;
 
     registerBoids(engine->GetRenderer());
     TexturedModelComponent::RegisterPipelines(engine->GetRenderer());
