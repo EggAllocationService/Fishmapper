@@ -60,8 +60,8 @@ int main() {
     engine->SetPostData(idx, fogParams);
     fogParams->color = float4(0, 0, 1, 1);
     fogParams->start = 1;
-    fogParams->end = 20;
-    fogParams->density = 1;
+    fogParams->end = 15;
+    fogParams->density = 1.5;
 
     registerBoids(engine->GetRenderer());
     TexturedModelComponent::RegisterPipelines(engine->GetRenderer());
