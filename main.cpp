@@ -19,19 +19,28 @@ public:
     PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
         auto component = CreateComponent<BoidsComponent>(1024, cloud);
 
-        //auto c = CreateComponent<PointCloudComponent>();
-        //c->SetCloudNode(cloud);
-        //c->GetTransform()->SetScale({8,8,8});
-        //c->GetTransform()->SetPosition({0, 0, -13});
+        cld = CreateComponent<PointCloudComponent>();
+        cld->SetCloudNode(cloud);
+        cld->GetTransform()->SetScale({8,8,8});
+        cld->GetTransform()->SetPosition({0, 0, -13});
 
-        CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj")
-            ->GetTransform()
+        bounds = CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj");
+        bounds->GetTransform()
             ->SetScale({10, 10, 10});
+    }
+
+    void SetDebugViz(bool val) {
+        cld->SetEnabled(val);
+        bounds->SetEnabled(val);
     }
 
     void Update(double deltaTime) override {
         // animation or other per-frame calculations happen here
     }
+
+private:
+    std::shared_ptr<PointCloudComponent> cld;
+    std::shared_ptr<glengine::world::mesh::GizmoComponent> bounds;
 };
 
 class Environment : public glengine::world::Actor {
@@ -48,6 +57,8 @@ struct alignas(16) FogParams {
     float end;
     float density;
 };
+
+bool debug = false;
 
 int main() {
     auto engine = new glengine::Engine("Fishmapper", {1280, 720});
@@ -92,7 +103,11 @@ int main() {
     engine->Update();
     engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 0, -10});
 
-    engine->SpawnActor<PointActor>(cloud->cloud);
+    auto sim = engine->SpawnActor<PointActor>(cloud->cloud);
+    sim->SetDebugViz(false);
+    engine->GetInputManager()->AddAction('g',[=] {
+        sim->SetDebugViz(debug = !debug);
+    });
     auto env = engine->SpawnActor<Environment>();
     env->GetTransform()->SetScale({15, 20, 15});
     env->GetTransform()->SetPosition({0, 0, 0});
