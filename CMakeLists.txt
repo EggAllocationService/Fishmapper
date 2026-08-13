@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 4.3)
 project(Fishmapper)
 
 set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
 
 include(FetchContent)
 FetchContent_Declare(pointmapper
@@ -10,7 +11,7 @@ FetchContent_Declare(pointmapper
 )
 FetchContent_MakeAvailable(pointmapper)
 
-add_executable(Fishmapper main.cpp
+add_executable(Fishmapper MACOSX_BUNDLE main.cpp
         components/BoidsComponent.cpp
         components/BoidsComponent.h
         components/TexturedModelComponent.cpp
@@ -26,6 +27,11 @@ build_pak(
             /models/env.obj
             /textures/sand.jpg
 )
+
+install(CODE "
+    INCLUDE(BundleUtilities)
+    fixup_bundle(${CMAKE_INSTALL_PREFIX}/Fishmapper.app \"\" \"\")
+")
 
 create_resource_library(
         NAME BoidShaders
