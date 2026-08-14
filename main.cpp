@@ -13,6 +13,7 @@
 #include "pointmapper/rendering/pipelines.h"
 #include "pointmapper/rendering/PointCloudComponent.h"
 #include "BoidShaders.h"
+#include "cmake-build-debug/_deps/glengine-src-src/include/3d/components/AxesComponent.h"
 
 class PointActor : public glengine::world::Actor {
 public:
@@ -27,11 +28,14 @@ public:
         bounds = CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj");
         bounds->GetTransform()
             ->SetScale({10, 10, 10});
+
+        axes = CreateComponent<glengine::world::components::AxesComponent>();
     }
 
     void SetDebugViz(bool val) {
         cld->SetEnabled(val);
         bounds->SetEnabled(val);
+        axes->SetEnabled(val);
     }
 
     void Update(double deltaTime) override {
@@ -41,6 +45,7 @@ public:
 private:
     std::shared_ptr<PointCloudComponent> cld;
     std::shared_ptr<glengine::world::mesh::GizmoComponent> bounds;
+    std::shared_ptr<glengine::world::components::AxesComponent> axes;
 };
 
 class Environment : public glengine::world::Actor {
@@ -107,7 +112,9 @@ int main() {
     sim->SetDebugViz(false);
     engine->GetInputManager()->AddAction('g',[=] {
         sim->SetDebugViz(debug = !debug);
+        engine->SetPostEffectEnabled(idx, !debug);
     });
+
     auto env = engine->SpawnActor<Environment>();
     env->GetTransform()->SetScale({15, 20, 15});
     env->GetTransform()->SetPosition({0, 0, 0});
