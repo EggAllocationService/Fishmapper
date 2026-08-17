@@ -7,6 +7,7 @@
 #include "Engine.h"
 #include "InputManager.h"
 #include "GLMath.h"
+#include "3d/components/AxesComponent.h"
 
 PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
     auto pointCloud = CreateComponent<PointCloudComponent>();
@@ -14,6 +15,8 @@ PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<poi
 
     auto camera = CreateComponent<glengine::world::components::CameraComponent>();
     SetActiveCamera(camera);
+
+    CreateComponent<glengine::world::components::AxesComponent>();
 }
 
 void PilotableCloud::Update(double deltaTime) {
