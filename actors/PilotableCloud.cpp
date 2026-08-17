@@ -12,11 +12,7 @@
 PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
     auto pointCloud = CreateComponent<PointCloudComponent>();
     pointCloud->SetCloudNode(cloud);
-
-    auto camera = CreateComponent<glengine::world::components::CameraComponent>();
-    SetActiveCamera(camera);
-
-    CreateComponent<glengine::world::components::AxesComponent>();
+    CreateComponent<glengine::world::components::AxesComponent>()->GetTransform()->SetScale({0.3, 0.3, 0.3});
 }
 
 void PilotableCloud::Update(double deltaTime) {

@@ -111,14 +111,14 @@ int main() {
     std::vector<CloudInput> cloudInputs;
     for (size_t i = 0; i < cloudOutputs.size(); i++) {
         auto pc = engine->SpawnActor<PilotableCloud>(cloudOutputs[i]);
-        pc->GetTransform()->SetScale({8, 8, 8});
+        pc->GetComponent<PointCloudComponent>()->GetTransform()->SetScale({8, 8, 8});
         pc->GetTransform()->SetPosition({static_cast<float>(i) * 5.0f, 0, -13});
         pc->GetComponent<PointCloudComponent>()->SetEnabled(false);
         pilotableClouds.push_back(pc);
 
         cloudInputs.push_back({
             cloudOutputs[i],
-            [pc]() { return pc->GetTransform()->GetAbsoluteMatrix(); }
+            [pc]() { return pc->GetTransform()->GetAbsoluteMatrix() * pc->GetComponent<PointCloudComponent>()->GetTransform()->GetAbsoluteMatrix(); }
         });
     }
 
