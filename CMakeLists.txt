@@ -15,7 +15,9 @@ add_executable(Fishmapper MACOSX_BUNDLE main.cpp
         components/BoidsComponent.cpp
         components/BoidsComponent.h
         components/TexturedModelComponent.cpp
-        components/TexturedModelComponent.h)
+        components/TexturedModelComponent.h
+        actors/PilotableCloud.cpp
+        actors/PilotableCloud.h)
 build_pak(
         NAME boidresources
         SOURCES
