@@ -84,10 +84,6 @@ fn blurred_density(voxel: vec3i) -> f32 {
     return totalDensity / 27.0;
 }
 
-fn convert_point(position: vec3f) -> vec3f {
-    return (position * 8.0) - vec3f(0.0, 0.0, 13.0);
-}
-
 @compute @workgroup_size(64)
 fn clear_voxels(@builtin(global_invocation_id) invocation: vec3u) {
     let index = invocation.x;
@@ -103,6 +99,12 @@ fn clear_voxels(@builtin(global_invocation_id) invocation: vec3u) {
     }
 }
 
+struct VoxelizeImmediates {
+    transform: mat4x4<f32>
+}
+
+var<immediate> im: VoxelizeImmediates;
+
 @compute @workgroup_size(64)
 fn voxelize_points(@builtin(global_invocation_id) invocation: vec3u) {
     let index = invocation.x;
@@ -110,7 +112,7 @@ fn voxelize_points(@builtin(global_invocation_id) invocation: vec3u) {
         return;
     }
 
-    let position = convert_point(points[index].position.xyz);
+    let position = (im.transform * vec4f(points[index].position.xyz, 1)).xyz;
     if (!is_inside_bounds(position)) {
         return;
     }

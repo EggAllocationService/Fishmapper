@@ -4,7 +4,13 @@
 
 #ifndef FISHMAPPER_BOIDSCOMPONENT_H
 #define FISHMAPPER_BOIDSCOMPONENT_H
+
+#include <cstdint>
+#include <functional>
+#include <vector>
+
 #include "Vectors.h"
+#include "Matrix.h"
 #include "3d/ActorSceneComponent.h"
 #include "pipeline/wgpu/WGPURenderer.h"
 #include "pipeline/wgpu/pipeline/ComputePipeline.h"
@@ -45,11 +51,20 @@ struct BoidImmediates {
     float deltaTime;
 };
 
+struct VoxelizeImmediates {
+    mat4 transform;
+};
+
+struct CloudInput {
+    std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud;
+    std::function<mat4()> getTransform;
+};
+
 void registerBoids(glengine::pipeline::wgpu::WGPURenderer* renderer);
 
 class BoidsComponent : public glengine::world::ActorSceneComponent {
 public:
-    BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud);
+    BoidsComponent(unsigned int count, const std::vector<CloudInput>& clouds);
     ~BoidsComponent() override;
 
     void Update(double deltaTime) override;
@@ -60,12 +75,18 @@ private:
     static constexpr unsigned int VoxelResolution = 32;
     static constexpr unsigned int VoxelCount = VoxelResolution * VoxelResolution * VoxelResolution;
 
+    struct CloudData {
+        std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud;
+        std::function<mat4()> getTransform;
+        std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> voxelizePipeline;
+        unsigned int maximumPointCount;
+    };
+
     void initPositionsAndVelocities();
     std::shared_ptr<glengine::pipeline::wgpu::RenderPipeline> renderPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> updatePipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> applyPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> clearVoxelsPipeline;
-    std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> voxelizePointsPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> eatPointsPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline> generateVectorFieldPipeline;
     std::shared_ptr<glengine::pipeline::wgpu::GPUMesh> mesh;
@@ -73,13 +94,14 @@ private:
     glengine::pipeline::wgpu::WrappedBuffer boidsBuffer;
     glengine::pipeline::wgpu::WrappedBuffer pointDensityBuffer;
     glengine::pipeline::wgpu::WrappedBuffer eatenPointBuffer;
+    glengine::pipeline::wgpu::WrappedBuffer dummyPointBuffer;
+    glengine::pipeline::wgpu::WrappedBuffer dummyPointCountBuffer;
     std::shared_ptr<glengine::pipeline::wgpu::GPUTexture> foodFieldTexture;
     WGPUSampler foodFieldSampler = nullptr;
     glengine::pipeline::wgpu::GPUPointer<VoxelParams> voxelParams;
 
+    std::vector<CloudData> clouds;
     unsigned int boidsCount;
-    unsigned int pointCapacity;
 };
-
 
 #endif //FISHMAPPER_BOIDSCOMPONENT_H

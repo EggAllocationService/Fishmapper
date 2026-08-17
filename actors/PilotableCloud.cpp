@@ -4,19 +4,34 @@
 
 #include "PilotableCloud.h"
 
+#include "Engine.h"
+#include "InputManager.h"
+#include "GLMath.h"
+
 PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-    CreateComponent<PointCloudComponent>()->SetCloudNode(cloud);
+    auto pointCloud = CreateComponent<PointCloudComponent>();
+    pointCloud->SetCloudNode(cloud);
+
+    auto camera = CreateComponent<glengine::world::components::CameraComponent>();
+    SetActiveCamera(camera);
+}
+
+void PilotableCloud::Update(double deltaTime) {
 }
 
 void PilotableCloud::OnPossess(glengine::input::InputManager *manager) {
+    // mouse look
+    manager->AddMouseAxis([this](float2 delta) {
+        auto rotation = this->GetTransform()->GetRotation();
+        rotation.xy += float2(-delta.y, delta.x) * 0.0005;
+        this->GetTransform()->SetRotation(rotation);
+    });
+
     // w to go forward, s to go back
     manager->AddAxis('w', 's', [this](float amount) {
         auto position = this->GetTransform()->GetPosition();
-
-        // remove the vertical component of the forward vector, so we don't move up/down if we're looking up/down
         auto forward = this->GetTransform()->GetForwardVector();
         position = position + float3(forward.x, 0.0, forward.z).norm() * amount;
-
         this->GetTransform()->SetPosition(position);
     });
 
@@ -47,4 +62,8 @@ void PilotableCloud::OnPossess(glengine::input::InputManager *manager) {
         rotation.xy += float2(-amount, 0);
         this->GetTransform()->SetRotation(rotation);
     });
+}
+
+void PilotableCloud::OnUnpossess() {
+    // intentionally empty: this pawn stays in the world when not possessed
 }

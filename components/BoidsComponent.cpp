@@ -170,7 +170,7 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
     };
     auto voxelKernels = renderer->CompileShader(embed_voxels_wgsl);
     renderer->BuildComputePipeline("ClearVoxels", voxelKernels, "clear_voxels", {voxelLayouts, 4}, 0);
-    renderer->BuildComputePipeline("VoxelizePoints", voxelKernels, "voxelize_points", {voxelLayouts, 4}, 0);
+    renderer->BuildComputePipeline("VoxelizePoints", voxelKernels, "voxelize_points", {voxelLayouts, 4}, sizeof(VoxelizeImmediates));
     renderer->BuildComputePipeline("EatPoints", voxelKernels, "eat_points", {voxelLayouts, 4}, 0);
     renderer->BuildComputePipeline("GenerateVectorField", voxelKernels, "generate_vector_field", {voxelLayouts, 4}, 0);
 
@@ -188,14 +188,16 @@ void registerBoids(glengine::pipeline::wgpu::WGPURenderer *renderer) {
     renderer->BuildRenderPipeline("Boids", shaders, nullptr, {&renderLayout, 1}, sizeof(mat4), nullptr);
 }
 
-BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
+BoidsComponent::BoidsComponent(unsigned int count, const std::vector<CloudInput>& cloudInputs) {
     auto renderer = GetEngine()->GetRenderer();
     boidsBuffer = renderer->CreateRawBuffer("boids data", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(Boid) * count);
     pointDensityBuffer = renderer->CreateRawBuffer("voxel density", WGPUBufferUsage_Storage, sizeof(uint32_t) * VoxelCount);
     eatenPointBuffer = renderer->CreateRawBuffer("eaten voxel density", WGPUBufferUsage_Storage | WGPUBufferUsage_CopyDst, sizeof(uint32_t) * VoxelCount);
     foodFieldTexture = renderer->CreateTexture("food vector field", WGPUTextureUsage_StorageBinding | WGPUTextureUsage_TextureBinding, WGPUTextureFormat_RGBA16Float, VoxelResolution, VoxelResolution, VoxelResolution);
+
+    dummyPointBuffer = renderer->CreateRawBuffer("dummy points", WGPUBufferUsage_Storage, sizeof(float) * 4);
+    dummyPointCountBuffer = renderer->CreateRawBuffer("dummy point count", WGPUBufferUsage_Storage, sizeof(uint32_t) * 4);
     boidsCount = count;
-    pointCapacity = (*cloud)->maximumPointCount;
 
     WGPUSamplerDescriptor samplerDescriptor = WGPU_SAMPLER_DESCRIPTOR_INIT;
     samplerDescriptor.addressModeU = WGPUAddressMode_ClampToEdge;
@@ -208,7 +210,6 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     updatePipeline = renderer->GetComputePipelineByName("BoidsUpdate")->CreateInstance();
     applyPipeline = renderer->GetComputePipelineByName("BoidsApply")->CreateInstance();
     clearVoxelsPipeline = renderer->GetComputePipelineByName("ClearVoxels")->CreateInstance();
-    voxelizePointsPipeline = renderer->GetComputePipelineByName("VoxelizePoints")->CreateInstance();
     eatPointsPipeline = renderer->GetComputePipelineByName("EatPoints")->CreateInstance();
     generateVectorFieldPipeline = renderer->GetComputePipelineByName("GenerateVectorField")->CreateInstance();
     Params = renderer->AllocateObject<SimParams>(WGPUBufferUsage_Uniform);
@@ -251,9 +252,9 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
     applyPipeline->SetBinding(0, 1, boidsBuffer);
     applyPipeline->CommitBindings();
 
-    auto bindVoxelPipeline = [&](const std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline>& pipeline) {
-        pipeline->SetBinding(0, 0, (*cloud)->points);
-        pipeline->SetBinding(0, 1, (*cloud)->pointCount);
+    auto bindSharedVoxelBindings = [&](const std::shared_ptr<glengine::pipeline::wgpu::ComputePipeline>& pipeline) {
+        pipeline->SetBinding(0, 0, dummyPointBuffer);
+        pipeline->SetBinding(0, 1, dummyPointCountBuffer);
         pipeline->SetBinding(1, 0, pointDensityBuffer);
         pipeline->SetBinding(1, 1, eatenPointBuffer);
         pipeline->SetBinding(1, 2, voxelParams);
@@ -261,10 +262,29 @@ BoidsComponent::BoidsComponent(unsigned int count, std::shared_ptr<pointmapper::
         pipeline->SetBinding(3, 0, *foodFieldTexture);
         pipeline->CommitBindings();
     };
-    bindVoxelPipeline(clearVoxelsPipeline);
-    bindVoxelPipeline(voxelizePointsPipeline);
-    bindVoxelPipeline(eatPointsPipeline);
-    bindVoxelPipeline(generateVectorFieldPipeline);
+    bindSharedVoxelBindings(clearVoxelsPipeline);
+    bindSharedVoxelBindings(eatPointsPipeline);
+    bindSharedVoxelBindings(generateVectorFieldPipeline);
+
+    auto baseVoxelizePipeline = renderer->GetComputePipelineByName("VoxelizePoints");
+    for (const auto& input : cloudInputs) {
+        CloudData data;
+        data.cloud = input.cloud;
+        data.getTransform = input.getTransform;
+        data.voxelizePipeline = baseVoxelizePipeline->CreateInstance();
+        data.maximumPointCount = (*input.cloud)->maximumPointCount;
+
+        data.voxelizePipeline->SetBinding(0, 0, (*input.cloud)->points);
+        data.voxelizePipeline->SetBinding(0, 1, (*input.cloud)->pointCount);
+        data.voxelizePipeline->SetBinding(1, 0, pointDensityBuffer);
+        data.voxelizePipeline->SetBinding(1, 1, eatenPointBuffer);
+        data.voxelizePipeline->SetBinding(1, 2, voxelParams);
+        data.voxelizePipeline->SetBinding(2, 0, boidsBuffer);
+        data.voxelizePipeline->SetBinding(3, 0, *foodFieldTexture);
+        data.voxelizePipeline->CommitBindings();
+
+        clouds.push_back(std::move(data));
+    }
 
     renderPipeline = renderer->GetRenderPipelineByName("Boids")->CreateInstance();
     renderPipeline->SetBinding(1, 0, boidsBuffer);
@@ -292,7 +312,12 @@ void BoidsComponent::Update(double deltaTime) {
     };
     auto pass = GetEngine()->GetRenderer()->BeginComputePass();
     clearVoxelsPipeline->DispatchWorkgroups(pass, (VoxelCount + 63) / 64, 1, 1, nullptr);
-    voxelizePointsPipeline->DispatchWorkgroups(pass, (pointCapacity + 63) / 64, 1, 1, nullptr);
+    for (const auto& cloud : clouds) {
+        VoxelizeImmediates voxelImmediates = {
+            .transform = cloud.getTransform()
+        };
+        cloud.voxelizePipeline->DispatchWorkgroups(pass, (cloud.maximumPointCount + 63) / 64, 1, 1, &voxelImmediates);
+    }
     eatPointsPipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);
     generateVectorFieldPipeline->DispatchWorkgroups(pass, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, (VoxelResolution + 3) / 4, nullptr);
     updatePipeline->DispatchWorkgroups(pass, (boidsCount + 63) / 64, 1, 1, nullptr);

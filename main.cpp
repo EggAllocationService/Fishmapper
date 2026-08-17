@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 #include "3d/mesh/GizmoComponent.h"
+#include "actors/PilotableCloud.h"
 #include "components/BoidsComponent.h"
 #include "components/TexturedModelComponent.h"
 #include "pointmapper/kinect2/Kinect2Device.h"
@@ -17,23 +18,16 @@
 
 class PointActor : public glengine::world::Actor {
 public:
-    PointActor(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
-        auto component = CreateComponent<BoidsComponent>(1024, cloud);
-
-        cld = CreateComponent<PointCloudComponent>();
-        cld->SetCloudNode(cloud);
-        cld->GetTransform()->SetScale({8,8,8});
-        cld->GetTransform()->SetPosition({0, 0, -13});
+    PointActor(const std::vector<CloudInput>& clouds) {
+        CreateComponent<BoidsComponent>(1024, clouds);
 
         bounds = CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj");
-        bounds->GetTransform()
-            ->SetScale({10, 10, 10});
+        bounds->GetTransform()->SetScale({10, 10, 10});
 
         axes = CreateComponent<glengine::world::components::AxesComponent>();
     }
 
     void SetDebugViz(bool val) {
-        cld->SetEnabled(val);
         bounds->SetEnabled(val);
         axes->SetEnabled(val);
     }
@@ -43,7 +37,6 @@ public:
     }
 
 private:
-    std::shared_ptr<PointCloudComponent> cld;
     std::shared_ptr<glengine::world::mesh::GizmoComponent> bounds;
     std::shared_ptr<glengine::world::components::AxesComponent> axes;
 };
@@ -83,36 +76,100 @@ int main() {
     TexturedModelComponent::RegisterPipelines(engine->GetRenderer());
 
     auto pipeline = new pointmapper::pipeline::PointmapperPipeline(engine->GetRenderer()->GetDevice(), wgpuDeviceGetQueue(engine->GetRenderer()->GetDevice()));
-    auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new Kinect2Device());
-    auto cloud = pipeline->CreateNode<pointmapper::pipeline::CreatePointCloudNode>();
-    auto mask = pipeline->CreateNode<pointmapper::pipeline::RemoveBackgroundNode>();
-    auto blobs = pipeline->CreateNode<pointmapper::pipeline::RemoveBlobsNode>();
+    std::vector<std::string> devices = Kinect2Device::EnumerateDevices();
 
+    std::vector<std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>>> cloudOutputs;
+    std::vector<std::shared_ptr<PilotableCloud>> pilotableClouds;
 
-    mask->camera_params->Connect(cam->params);
-    mask->frameData->Connect(cam->frameData);
-    mask->inputDepthMap->Connect(cam->depth);
+    for (size_t i = 0; i < devices.size(); i++) {
+        auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new Kinect2Device(devices[i]));
+        auto mask = pipeline->CreateNode<pointmapper::pipeline::RemoveBackgroundNode>();
+        auto blobs = pipeline->CreateNode<pointmapper::pipeline::RemoveBlobsNode>();
+        auto cloud = pipeline->CreateNode<pointmapper::pipeline::CreatePointCloudNode>();
 
-    blobs->frameData->Connect(cam->frameData);
-    blobs->camera_params->Connect(cam->params);
-    blobs->inputDepthMap->Connect(mask->depthMap);
+        mask->camera_params->Connect(cam->params);
+        mask->frameData->Connect(cam->frameData);
+        mask->inputDepthMap->Connect(cam->depth);
 
+        blobs->frameData->Connect(cam->frameData);
+        blobs->camera_params->Connect(cam->params);
+        blobs->inputDepthMap->Connect(mask->depthMap);
 
-    cloud->camera_params->Connect(cam->params);
-    cloud->color->Connect(cam->color);
-    cloud->frameData->Connect(cam->frameData);
-    cloud->depth_map->Connect(blobs->depthMap);
+        cloud->camera_params->Connect(cam->params);
+        cloud->color->Connect(cam->color);
+        cloud->frameData->Connect(cam->frameData);
+        cloud->depth_map->Connect(blobs->depthMap);
+
+        cloudOutputs.push_back(cloud->cloud);
+    }
 
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());
     engine->Update();
     engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 0, -10});
 
-    auto sim = engine->SpawnActor<PointActor>(cloud->cloud);
+    std::vector<CloudInput> cloudInputs;
+    for (size_t i = 0; i < cloudOutputs.size(); i++) {
+        auto pc = engine->SpawnActor<PilotableCloud>(cloudOutputs[i]);
+        pc->GetTransform()->SetScale({8, 8, 8});
+        pc->GetTransform()->SetPosition({static_cast<float>(i) * 5.0f, 0, -13});
+        pc->GetComponent<PointCloudComponent>()->SetEnabled(false);
+        pilotableClouds.push_back(pc);
+
+        cloudInputs.push_back({
+            cloudOutputs[i],
+            [pc]() { return pc->GetTransform()->GetAbsoluteMatrix(); }
+        });
+    }
+
+    auto sim = engine->SpawnActor<PointActor>(cloudInputs);
     sim->SetDebugViz(false);
-    engine->GetInputManager()->AddAction('g',[=] {
-        sim->SetDebugViz(debug = !debug);
+
+    int possessedCloudIndex = 0;
+    bool possessingCloud = false;
+    auto possessCloud = [&](int index) {
+        if (pilotableClouds.empty()) return;
+        possessedCloudIndex = index;
+        if (possessedCloudIndex < 0) possessedCloudIndex = static_cast<int>(pilotableClouds.size()) - 1;
+        if (possessedCloudIndex >= static_cast<int>(pilotableClouds.size())) possessedCloudIndex = 0;
+        engine->Possess(pilotableClouds[possessedCloudIndex]);
+        possessingCloud = true;
+    };
+
+    auto enterFreeCamera = [&] {
+        engine->Possess(nullptr);
+        possessingCloud = false;
+    };
+
+    engine->GetInputManager()->AddAction(',', [&] {
+        if (!debug) return;
+        if (!possessingCloud) {
+            possessCloud(0);
+        } else {
+            possessCloud(possessedCloudIndex - 1);
+        }
+    });
+    engine->GetInputManager()->AddAction('.', [&] {
+        if (!debug) return;
+        if (!possessingCloud) {
+            possessCloud(0);
+        } else {
+            possessCloud(possessedCloudIndex + 1);
+        }
+    });
+
+    engine->GetInputManager()->AddAction('g', [=, &possessedCloudIndex, &possessingCloud] {
+        debug = !debug;
+        sim->SetDebugViz(debug);
+        for (auto& pc : pilotableClouds) {
+            pc->GetComponent<PointCloudComponent>()->SetEnabled(debug);
+        }
         engine->SetPostEffectEnabled(idx, !debug);
+        if (debug) {
+            possessingCloud = false;
+        } else {
+            enterFreeCamera();
+        }
     });
 
     auto env = engine->SpawnActor<Environment>();
