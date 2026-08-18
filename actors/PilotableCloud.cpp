@@ -18,6 +18,8 @@ PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<poi
     pointCloud->SetTint(Colors::hsv(hue, 1.f, 1.f));
     pointCloud->SetMaxDepth(4);
     CreateComponent<glengine::world::components::AxesComponent>()->GetTransform()->SetScale({0.3, 0.3, 0.3});
+
+    GetActiveCamera()->FoV = 70; // roughly depth fov
 }
 
 void PilotableCloud::Update(double deltaTime) {
