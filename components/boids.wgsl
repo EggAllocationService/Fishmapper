@@ -115,5 +115,5 @@ fn apply_velocities(@builtin(global_invocation_id) idx: vec3u) {
         return;
     }
 
-    boids[i].position = vec4f(boids[i].position.xyz + boids[i].velocity.xyz * im.deltaTime, 0.0);
+    boids[i].position = vec4f(boids[i].position.xyz + boids[i].velocity.xyz * min(im.deltaTime, 0.5), 0.0);
 }

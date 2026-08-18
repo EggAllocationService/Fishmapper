@@ -16,10 +16,10 @@
 #include "BoidShaders.h"
 #include "cmake-build-debug/_deps/glengine-src-src/include/3d/components/AxesComponent.h"
 
-class PointActor : public glengine::world::Actor {
+class SimulationActor : public glengine::world::Actor {
 public:
-    PointActor(const std::vector<CloudInput>& clouds) {
-        CreateComponent<BoidsComponent>(1024, clouds);
+    SimulationActor(const std::vector<CloudInput>& clouds) {
+        boids = CreateComponent<BoidsComponent>(1024, clouds);
 
         bounds = CreateComponent<glengine::world::mesh::GizmoComponent>("/builtin/models/cube.obj");
         bounds->GetTransform()->SetScale({10, 10, 10});
@@ -30,6 +30,7 @@ public:
     void SetDebugViz(bool val) {
         bounds->SetEnabled(val);
         axes->SetEnabled(val);
+        boids->SetEnabled(!val);
     }
 
     void Update(double deltaTime) override {
@@ -37,6 +38,7 @@ public:
     }
 
 private:
+    std::shared_ptr<BoidsComponent> boids;
     std::shared_ptr<glengine::world::mesh::GizmoComponent> bounds;
     std::shared_ptr<glengine::world::components::AxesComponent> axes;
 };
@@ -122,7 +124,7 @@ int main() {
         });
     }
 
-    auto sim = engine->SpawnActor<PointActor>(cloudInputs);
+    auto sim = engine->SpawnActor<SimulationActor>(cloudInputs);
     sim->SetDebugViz(false);
 
     int possessedCloudIndex = 0;

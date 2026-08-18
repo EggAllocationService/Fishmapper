@@ -7,7 +7,7 @@ set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
 include(FetchContent)
 FetchContent_Declare(pointmapper
         GIT_REPOSITORY https://github.com/EggAllocationService/Pointmapper.git
-        GIT_TAG b2e4f89f91517353d0b3cdb19659face88bbc06c
+        GIT_TAG 828d0bac7d76dcbbe5ece3fdacbd45b3616ce7e6
 )
 FetchContent_MakeAvailable(pointmapper)
 

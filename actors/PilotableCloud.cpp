@@ -4,6 +4,7 @@
 
 #include "PilotableCloud.h"
 
+#include "Colors.h"
 #include "Engine.h"
 #include "InputManager.h"
 #include "GLMath.h"
@@ -12,6 +13,10 @@
 PilotableCloud::PilotableCloud(std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>> cloud) {
     auto pointCloud = CreateComponent<PointCloudComponent>();
     pointCloud->SetCloudNode(cloud);
+
+    auto hue = (int)glengine::math::frand(0, 360);
+    pointCloud->SetTint(Colors::hsv(hue, 1.f, 1.f));
+    pointCloud->SetMaxDepth(4);
     CreateComponent<glengine::world::components::AxesComponent>()->GetTransform()->SetScale({0.3, 0.3, 0.3});
 }
 
