@@ -15,6 +15,7 @@
 #include "pointmapper/rendering/PointCloudComponent.h"
 #include "BoidShaders.h"
 #include "cmake-build-debug/_deps/glengine-src-src/include/3d/components/AxesComponent.h"
+#include "saving/positionsaver.hpp"
 
 class SimulationActor : public glengine::world::Actor {
 public:
@@ -181,6 +182,13 @@ int main() {
         } else {
             enterFreeCamera();
         }
+    });
+
+    engine->GetInputManager()->AddAction('o', [&] {
+       savePositions(pilotableClouds, devices);
+    });
+    engine->GetInputManager()->AddAction('l', [&] {
+       loadPositions(pilotableClouds, devices);
     });
 
     while (!glfwWindowShouldClose(engine->GetWindow())) {

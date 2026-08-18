@@ -23,7 +23,9 @@ add_executable(Fishmapper MACOSX_BUNDLE main.cpp
         components/TexturedModelComponent.cpp
         components/TexturedModelComponent.h
         actors/PilotableCloud.cpp
-        actors/PilotableCloud.h)
+        actors/PilotableCloud.h
+        saving/positionsaver.cpp
+        saving/positionsaver.hpp)
 build_pak(
         NAME boidresources
         SOURCES
