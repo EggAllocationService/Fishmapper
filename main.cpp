@@ -115,7 +115,7 @@ int main() {
         auto pc = engine->SpawnActor<PilotableCloud>(cloudOutputs[i]);
         pc->GetComponent<PointCloudComponent>()->GetTransform()->SetScale({8, 8, 8});
         pc->GetTransform()->SetPosition({static_cast<float>(i) * 5.0f, 0, -13});
-        pc->GetComponent<PointCloudComponent>()->SetEnabled(false);
+        pc->SetEnabled(false);
         pilotableClouds.push_back(pc);
 
         cloudInputs.push_back({
@@ -127,13 +127,20 @@ int main() {
     auto sim = engine->SpawnActor<SimulationActor>(cloudInputs);
     sim->SetDebugViz(false);
 
+    auto env = engine->SpawnActor<Environment>();
+    env->GetTransform()->SetScale({15, 20, 15});
+    env->GetTransform()->SetPosition({0, 0, 0});
+
     int possessedCloudIndex = 0;
     bool possessingCloud = false;
     auto possessCloud = [&](int index) {
         if (pilotableClouds.empty()) return;
         possessedCloudIndex = index;
         if (possessedCloudIndex < 0) possessedCloudIndex = static_cast<int>(pilotableClouds.size()) - 1;
-        if (possessedCloudIndex >= static_cast<int>(pilotableClouds.size())) possessedCloudIndex = 0;
+        if (possessedCloudIndex >= static_cast<int>(pilotableClouds.size())) {
+            engine->Possess(nullptr);
+            return;
+        }
         engine->Possess(pilotableClouds[possessedCloudIndex]);
         possessingCloud = true;
     };
@@ -141,6 +148,7 @@ int main() {
     auto enterFreeCamera = [&] {
         engine->Possess(nullptr);
         possessingCloud = false;
+        engine->GetPossessedPawn()->GetTransform()->SetPosition({0, 0, -10});
     };
 
     engine->GetInputManager()->AddAction(',', [&] {
@@ -163,8 +171,9 @@ int main() {
     engine->GetInputManager()->AddAction('g', [=, &possessedCloudIndex, &possessingCloud] {
         debug = !debug;
         sim->SetDebugViz(debug);
+        env->SetEnabled(!debug);
         for (auto& pc : pilotableClouds) {
-            pc->GetComponent<PointCloudComponent>()->SetEnabled(debug);
+            pc->SetEnabled(debug);
         }
         engine->SetPostEffectEnabled(idx, !debug);
         if (debug) {
@@ -173,10 +182,6 @@ int main() {
             enterFreeCamera();
         }
     });
-
-    auto env = engine->SpawnActor<Environment>();
-    env->GetTransform()->SetScale({15, 20, 15});
-    env->GetTransform()->SetPosition({0, 0, 0});
 
     while (!glfwWindowShouldClose(engine->GetWindow())) {
         glfwPollEvents();

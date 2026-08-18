@@ -35,14 +35,14 @@ void PilotableCloud::OnPossess(glengine::input::InputManager *manager) {
     manager->AddAxis('w', 's', [this](float amount) {
         auto position = this->GetTransform()->GetPosition();
         auto forward = this->GetTransform()->GetForwardVector();
-        position = position + float3(forward.x, 0.0, forward.z).norm() * amount;
+        position = position + float3(forward.x, 0.0, forward.z).norm() * amount * 2;
         this->GetTransform()->SetPosition(position);
     });
 
     // d to go right, a to go left
     manager->AddAxis('d', 'a', [this](float amount) {
         auto position = this->GetTransform()->GetPosition();
-        position = position + this->GetTransform()->GetRightVector() * amount;
+        position = position + this->GetTransform()->GetRightVector() * amount * 2;
         this->GetTransform()->SetPosition(position);
     });
 
@@ -64,6 +64,12 @@ void PilotableCloud::OnPossess(glengine::input::InputManager *manager) {
     manager->AddAxis(KEY_ARROW_UP, KEY_ARROW_DOWN, [this](float amount) {
         auto rotation = this->GetTransform()->GetRotation();
         rotation.xy += float2(-amount, 0);
+        this->GetTransform()->SetRotation(rotation);
+    });
+
+    manager->AddAxis('q', 'e', [this](float amount) {
+        auto rotation = this->GetTransform()->GetRotation();
+        rotation.z += amount;
         this->GetTransform()->SetRotation(rotation);
     });
 }
