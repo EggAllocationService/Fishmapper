@@ -3,11 +3,12 @@ project(Fishmapper)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
+set(CMAKE_OSX_DEPLOYMENT_TARGET 26.0)
 
 include(FetchContent)
 FetchContent_Declare(pointmapper
         GIT_REPOSITORY https://github.com/EggAllocationService/Pointmapper.git
-        GIT_TAG 828d0bac7d76dcbbe5ece3fdacbd45b3616ce7e6
+        GIT_TAG 175d7d310b240600d0f596cf8fde31ba3df12bc6
 )
 FetchContent_MakeAvailable(pointmapper)
 
