@@ -8,7 +8,7 @@ set(CMAKE_OSX_DEPLOYMENT_TARGET 26.0)
 include(FetchContent)
 FetchContent_Declare(pointmapper
         GIT_REPOSITORY https://github.com/EggAllocationService/Pointmapper.git
-        GIT_TAG 175d7d310b240600d0f596cf8fde31ba3df12bc6
+        GIT_TAG 348642bd23f5171dcb3ea8becae614784c1cb97e
 )
 FetchContent_MakeAvailable(pointmapper)
 
