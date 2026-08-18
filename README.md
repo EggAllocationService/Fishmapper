@@ -22,6 +22,22 @@ Save/load keybinds:
 
 Note that saved positions are associated with camera serial numbers, so removing or adding cameras will not impact alignments already set up.
 
+## Building & Bundling
+
+When building on macOS, cmake will produce a .app bundle. It is possible to embed all dependencies in it to produce a self-contained app that can be deployed to any compatable mac.
+If you wish to build a universal binary, you'll have to set `CMAKE_OSX_ARCHITECTURES` and ensure that all external dependencies are also universal.
+
+To build:
+```bash
+mkdir build && cd build
+cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake --build . --target install/local
+codesign --deep --force --sign - Fishmapper.app
+```
+
+If the app is transferred to another mac it may be quarantined (when opened shows a "move to trash" button). To fix this, run `xattr -d com.apple.quarantine Fishmapper.app` on the target mac.
+To bypass code signing complaints right click on the app and click open instead of double-clicking (this tells macOS to trust the signature).
+
 ## Components
 
 ### `main.cpp`
