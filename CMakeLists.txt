@@ -12,6 +12,11 @@ FetchContent_Declare(pointmapper
 )
 FetchContent_MakeAvailable(pointmapper)
 
+add_library(tinyfd STATIC external/tinyfiledialogs.c external/tinyfiledialogs.h)
+if(WIN32)
+    target_link_libraries(tinyfd PUBLIC comdlg32.lib ole32.lib user32.lib shell32.lib)
+endif()
+
 add_executable(Fishmapper MACOSX_BUNDLE main.cpp
         components/BoidsComponent.cpp
         components/BoidsComponent.h
@@ -44,4 +49,4 @@ create_resource_library(
 
 target_include_directories(Fishmapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(Fishmapper PUBLIC pointmapper BoidShaders)
+target_link_libraries(Fishmapper PUBLIC pointmapper BoidShaders tinyfd)
