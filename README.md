@@ -32,7 +32,7 @@ To build:
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --target install/local
-codesign --deep --force --sign - Fishmapper.app
+codesign --deep --force --sign - Fishmapper.app # only needed on macos
 ```
 
 If the app is transferred to another mac it may be quarantined (when opened shows a "move to trash" button). To fix this, run `xattr -d com.apple.quarantine Fishmapper.app` on the target mac.
