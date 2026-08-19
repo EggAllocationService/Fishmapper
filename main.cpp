@@ -13,8 +13,10 @@
 #include "pointmapper/pipeline/nodes/RemoveBlobsNode.h"
 #include "pointmapper/rendering/pipelines.h"
 #include "pointmapper/rendering/PointCloudComponent.h"
-#include "BoidShaders.h"
-#include "cmake-build-debug/_deps/glengine-src-src/include/3d/components/AxesComponent.h"
+#include "3d/components/AxesComponent.h"
+#ifdef REALSENSE_SUPPORT
+#include "pointmapper/realsense/RealsenseDevice.h"
+#endif
 #include "saving/positionsaver.hpp"
 
 class SimulationActor : public glengine::world::Actor {
@@ -80,6 +82,9 @@ int main() {
 
     auto pipeline = new pointmapper::pipeline::PointmapperPipeline(engine->GetRenderer()->GetDevice(), wgpuDeviceGetQueue(engine->GetRenderer()->GetDevice()));
     std::vector<std::string> devices = Kinect2Device::EnumerateDevices();
+#ifdef REALSENSE_SUPPORT
+    std::vector<std::string> realsenseDevices = RealsenseDevice::EnumerateDevices();
+#endif
 
     std::vector<std::shared_ptr<pointmapper::pipeline::Output<pointmapper::pipeline::GPUPointCloud>>> cloudOutputs;
     std::vector<std::shared_ptr<PilotableCloud>> pilotableClouds;
@@ -105,6 +110,32 @@ int main() {
 
         cloudOutputs.push_back(cloud->cloud);
     }
+
+#ifdef REALSENSE_SUPPORT
+    for (size_t i = 0; i < realsenseDevices.size(); i++) {
+        auto cam = pipeline->CreateRoot<pointmapper::pipeline::DepthCameraNode>(new RealsenseDevice(realsenseDevices[i]));
+        auto mask = pipeline->CreateNode<pointmapper::pipeline::RemoveBackgroundNode>();
+        auto blobs = pipeline->CreateNode<pointmapper::pipeline::RemoveBlobsNode>();
+        auto cloud = pipeline->CreateNode<pointmapper::pipeline::CreatePointCloudNode>();
+
+        mask->camera_params->Connect(cam->params);
+        mask->frameData->Connect(cam->frameData);
+        mask->inputDepthMap->Connect(cam->depth);
+
+        blobs->frameData->Connect(cam->frameData);
+        blobs->camera_params->Connect(cam->params);
+        blobs->inputDepthMap->Connect(mask->depthMap);
+
+        cloud->camera_params->Connect(cam->params);
+        cloud->color->Connect(cam->color);
+        cloud->frameData->Connect(cam->frameData);
+        cloud->depth_map->Connect(blobs->depthMap);
+
+        cloudOutputs.push_back(cloud->cloud);
+
+        devices.push_back(realsenseDevices[i]);
+    }
+#endif
 
     pipeline->Build();
     addPointmapperPipelines(engine->GetRenderer());

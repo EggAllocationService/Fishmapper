@@ -52,3 +52,7 @@ create_resource_library(
 target_include_directories(Fishmapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
 target_link_libraries(Fishmapper PUBLIC pointmapper BoidShaders tinyfd)
+
+if (REALSENSE_SUPPORT)
+target_compile_definitions(Fishmapper PRIVATE REALSENSE_SUPPORT)
+endif()
