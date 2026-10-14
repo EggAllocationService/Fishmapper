@@ -223,6 +223,13 @@ int main() {
         engine->SetPostEffectEnabled(idx, background);
     });
 
+    engine->GetInputManager()->AddAction('f', [=] {
+        if (!possessingCloud) {
+            auto t = engine->GetPossessedPawn()->GetActiveCamera()->GetTransform();
+            t->SetScale(t->GetScale() * float3(-1, 1, 1));
+        }
+    });
+
     engine->GetInputManager()->AddAction('o', [&] {
        savePositions(pilotableClouds, devices);
     });
