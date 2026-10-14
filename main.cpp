@@ -62,6 +62,7 @@ struct alignas(16) FogParams {
 };
 
 bool debug = false;
+bool background = true;
 
 int main() {
     auto engine = new glengine::Engine("Fishmapper", {1280, 720});
@@ -202,17 +203,24 @@ int main() {
 
     engine->GetInputManager()->AddAction('g', [=, &possessedCloudIndex, &possessingCloud] {
         debug = !debug;
+        background = !debug;
         sim->SetDebugViz(debug);
-        env->SetEnabled(!debug);
+        env->SetEnabled(background);
         for (auto& pc : pilotableClouds) {
             pc->SetEnabled(debug);
         }
-        engine->SetPostEffectEnabled(idx, !debug);
+        engine->SetPostEffectEnabled(idx, background);
         if (debug) {
             possessingCloud = false;
         } else {
             enterFreeCamera();
         }
+    });
+
+    engine->GetInputManager()->AddAction('b', [=] {
+        background = !background;
+        env->SetEnabled(background);
+        engine->SetPostEffectEnabled(idx, background);
     });
 
     engine->GetInputManager()->AddAction('o', [&] {
