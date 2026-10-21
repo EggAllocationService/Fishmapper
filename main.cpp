@@ -203,24 +203,27 @@ int main() {
 
     engine->GetInputManager()->AddAction('g', [=, &possessedCloudIndex, &possessingCloud] {
         debug = !debug;
-        background = !debug;
         sim->SetDebugViz(debug);
-        env->SetEnabled(background);
         for (auto& pc : pilotableClouds) {
             pc->SetEnabled(debug);
         }
-        engine->SetPostEffectEnabled(idx, background);
         if (debug) {
             possessingCloud = false;
+            env->SetEnabled(false);
+            engine->SetPostEffectEnabled(idx, false);
         } else {
             enterFreeCamera();
+            env->SetEnabled(background);
+            engine->SetPostEffectEnabled(idx, background);
         }
     });
 
     engine->GetInputManager()->AddAction('b', [=] {
         background = !background;
-        env->SetEnabled(background);
-        engine->SetPostEffectEnabled(idx, background);
+        if (!debug) {
+            env->SetEnabled(background);
+            engine->SetPostEffectEnabled(idx, background);
+        }
     });
 
     engine->GetInputManager()->AddAction('f', [=] {
