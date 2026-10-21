@@ -97,6 +97,10 @@ fn update_boids(@builtin(global_invocation_id) pos: vec3u) {
     velocity -= select(vec3f(0.0), vec3f(params.turnFactor), boidPosition > vec3f(10.0));
     velocity += select(vec3f(0.0), vec3f(params.turnFactor), boidPosition < vec3f(-10.0));
 
+    let delta = velocity - boid.velocity.xyz;
+
+    velocity = boid.velocity.xyz + (delta * 0.1);
+
     let speed = length(velocity);
     if (speed < params.minSpeed) {
         velocity = normalize(velocity) * params.minSpeed;
