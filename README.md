@@ -1,16 +1,18 @@
-# Fishmapper
+# FishMirror
 
-Fishmapper is a demo project for Pointmapper, showcasing point cloud data interacting with a boids simulation.
+FishMirror is a demo project for Pointmapper, showcasing point cloud data interacting with a boids simulation.
 
 ## Controls
 
 In normal free-camera:
+
 - WASD for forward, left, right, and backwards movement respectively (relative to the camera orientation on the xz plane)
 - Space and C to go up and down respectively (not relative to camera orientation)
 - Arrow keys to rotate the camera up, down, left, and right
 - `g` to toggle alignment mode
 
 In alignment mode:
+
 - Same controls for camera movement
 - `,` and `.` cycle between camera viewpoints, while on a camera viewpoint you can move it with the normal movement keys
   - `,` goes back one camera, `.` goes forward. Camera order is by alphabetical serial numbers. Going off of the end returns you to the free-camera mode.
@@ -32,10 +34,10 @@ To build:
 mkdir build && cd build
 cmake .. -DCMAKE_BUILD_TYPE=Release
 cmake --build . --target install/local
-codesign --deep --force --sign - Fishmapper.app # only needed on macos
+codesign --deep --force --sign - FishMirror.app # only needed on macos
 ```
 
-If the app is transferred to another mac it may be quarantined (when opened shows a "move to trash" button). To fix this, run `xattr -d com.apple.quarantine Fishmapper.app` on the target mac.
+If the app is transferred to another mac it may be quarantined (when opened shows a "move to trash" button). To fix this, run `xattr -d com.apple.quarantine FishMirror.app` on the target mac.
 To bypass code signing complaints right click on the app and click open instead of double-clicking (this tells macOS to trust the signature).
 
 ## Components

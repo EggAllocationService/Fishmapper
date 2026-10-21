@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 4.3)
-project(Fishmapper)
+project(FishMirror)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_INSTALL_PREFIX ${CMAKE_BINARY_DIR})
@@ -17,7 +17,7 @@ if(WIN32)
     target_link_libraries(tinyfd PUBLIC comdlg32.lib ole32.lib user32.lib shell32.lib)
 endif()
 
-add_executable(Fishmapper MACOSX_BUNDLE main.cpp
+add_executable(FishMirror MACOSX_BUNDLE main.cpp
         components/BoidsComponent.cpp
         components/BoidsComponent.h
         components/TexturedModelComponent.cpp
@@ -40,7 +40,7 @@ build_pak(
 
 install(CODE "
     INCLUDE(BundleUtilities)
-    fixup_bundle(${CMAKE_INSTALL_PREFIX}/Fishmapper.app \"\" \"\")
+    fixup_bundle(${CMAKE_INSTALL_PREFIX}/FishMirror.app \"\" \"\")
 ")
 
 create_resource_library(
@@ -49,10 +49,10 @@ create_resource_library(
         RAW_SOURCES boidresources.pak
 )
 
-target_include_directories(Fishmapper PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(FishMirror PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 
-target_link_libraries(Fishmapper PUBLIC pointmapper BoidShaders tinyfd)
+target_link_libraries(FishMirror PUBLIC pointmapper BoidShaders tinyfd)
 
 if (REALSENSE_SUPPORT)
-target_compile_definitions(Fishmapper PRIVATE REALSENSE_SUPPORT)
+target_compile_definitions(FishMirror PRIVATE REALSENSE_SUPPORT)
 endif()

@@ -65,7 +65,7 @@ bool debug = false;
 bool background = true;
 
 int main() {
-    auto engine = new glengine::Engine("Fishmapper", {1280, 720});
+    auto engine = new glengine::Engine("FishMirror", {1280, 720});
     engine->SetAllowNonFocusedPawnInput(true);
     engine->GetResourceManager()->MountPak("/", embed_boidresources_pak, embed_boidresources_pak_length);
 
